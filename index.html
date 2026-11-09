@@ -949,6 +949,49 @@ function closeModal(){$('modal-overlay').classList.add('hidden');$('modal-body')
 // ═══════════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════════
+// ═══ DESKTOP STATS + PERIPHERAL HOLDERS ═══
+function gbLabel(v){var n=parseFloat(String(v||'').replace(/[^0-9.]/g,''));return n?n+' GB':''}
+function empOfAsset(a){return a.empId?(Object.values(DB.users).find(function(u){return u.id===a.empId})||null):null}
+function deskCard(){
+  var ds=DB.assets.filter(function(a){return a.cat==='Desktop'});
+  function cnt(st){return ds.filter(function(a){return a.status===st}).length}
+  var ram={},ssd={},miss=0;
+  ds.forEach(function(a){var r=gbLabel(a.ram),s=gbLabel(a.stotal);if(!r&&!s){miss++;return}
+    var rk=r||'RAM not set';ram[rk]=(ram[rk]||0)+1;
+    var sk=s?s+' '+(a.stype||'SSD'):'SSD not set';ssd[sk]=(ssd[sk]||0)+1});
+  function chips(o,cls){return Object.keys(o).sort(function(a,b){return (parseFloat(a)||1e9)-(parseFloat(b)||1e9)}).map(function(k){return '<span class="badge '+cls+'" style="font-size:13px;padding:6px 10px;margin:0 6px 6px 0">'+esc(k)+': <b>'+o[k]+'</b></span>'}).join('')}
+  function box(n,l,c){return '<div style="flex:1;min-width:90px;text-align:center;padding:8px;border:1px solid var(--border,#333);border-radius:10px"><div style="font-size:22px;font-weight:700;color:'+c+'">'+n+'</div><div style="font-size:11px;color:var(--muted)">'+l+'</div></div>'}
+  var h='<div class="card" id="desk-stats"><div class="card-title">🖥️ Desktop RAM & SSD</div>';
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">'+box(ds.length,'Total Desktop','#a78bfa')+box(cnt('In Use'),'In use','#60a5fa')+box(cnt('In Stock'),'In stock','#fbbf24')+box(cnt('Faulty'),'Faulty','#f87171')+'</div>';
+  if(!ds.length)h+='<p style="color:var(--muted);font-size:13px">Abhi koi Desktop add nahi hua. Assets mein Category "Desktop" chun kar add karein.</p>';
+  else if(Object.keys(ram).length||Object.keys(ssd).length)h+='<div style="font-size:12px;color:var(--muted);margin-bottom:6px">RAM</div>'+chips(ram,'badge-blue')+'<div style="font-size:12px;color:var(--muted);margin:6px 0">SSD / Storage</div>'+chips(ssd,'badge-purple')+(miss?'<div style="font-size:12px;color:var(--muted);margin-top:4px">Specs baqi: '+miss+' desktop</div>':'');
+  return h+'</div>';
+}
+var PERIPH=[{k:'Mouse',e:'🖱️'},{k:'Headphone',e:'🎧'},{k:'Keyboard',e:'⌨️'},{k:'LCD',e:'🖥️'}];
+function periphRows(k){
+  var rows=[],assets=DB.assets;
+  function add(a,src){var e=empOfAsset(a);rows.push({name:e?e.name:(a.empId||'?'),desk:a.desk||(e&&e.desk)||'',st:a.station||(e&&e.station)||'',src:src})}
+  if(k==='Mouse'||k==='Headphone')assets.filter(function(a){return a.cat==='Laptop'&&a.empId}).forEach(function(a){add(a,'Laptop '+a.id+' ke saath (auto)')});
+  assets.filter(function(a){return a.empId&&(a.cat===k||(k==='LCD'&&a.cat==='Monitor'))}).forEach(function(a){add(a,a.id+(a.cat==='Monitor'?' (Monitor)':''))});
+  return rows.sort(function(a,b){return (+a.desk||999)-(+b.desk||999)||(+a.st||999)-(+b.st||999)});
+}
+function periphCard(){
+  var h='<div class="card"><div class="card-title">🎒 Peripherals — kis ko diya hua hai <span style="font-size:11px;color:var(--muted);font-weight:400">(icon pe click karein)</span></div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px">';
+  PERIPH.forEach(function(p){
+    h+='<div class="inv-card" style="cursor:pointer;text-align:center" onclick="openPeriph(\''+p.k+'\')" title="Dekhein kis ko '+p.k+' diya hai"><div class="inv-card-ic" style="font-size:34px">'+p.e+'</div><div class="inv-card-name">'+p.k+'</div><div style="font-size:22px;font-weight:700;color:#60a5fa">'+periphRows(p.k).length+'</div><div style="font-size:11px;color:var(--muted)">diye hue</div></div>';
+  });
+  return h+'</div></div>';
+}
+function openPeriph(k){
+  var p=PERIPH.find(function(x){return x.k===k}),rows=periphRows(k);
+  var body='<p style="font-size:13px;color:var(--muted);margin-bottom:8px">'+((k==='Mouse'||k==='Headphone')?'Laptop dene par '+k+' automatic saath jata hai.':'Asset mein Assigned Employee ID likhne par yahan nazar aata hai.')+'</p>';
+  if(!rows.length)body+='<p style="font-size:13px">Abhi kisi ko '+esc(k)+' assign nahi hua.</p>';
+  else{body+='<div class="tbl-wrap"><table><thead><tr><th>Employee</th><th>Desk/Station</th><th>Source</th></tr></thead><tbody>';
+    rows.forEach(function(r){body+='<tr><td><b>'+esc(r.name)+'</b></td><td>'+esc(r.desk||'-')+(r.st?' / '+esc(r.st):'')+'</td><td style="font-size:11px">'+esc(r.src)+'</td></tr>'});
+    body+='</tbody></table></div>';}
+  openModal(p.e+' '+k+' — '+rows.length+' diye hue',body);
+}
+
 function dashV(){
   var users=DB.users,assets=DB.assets,tickets=DB.tickets;
   var staff=Object.values(users).filter(function(u){return u.role!=='admin'&&u.role!=='agent'});
@@ -975,6 +1018,8 @@ function dashV(){
   h+='</div>';
 
   h+=specCard();
+  h+=deskCard();
+  h+=periphCard();
   // Hardware Inventory
   h+='<div class="card"><div class="card-title" style="display:flex;justify-content:space-between;align-items:center"><span>📦 Hardware Inventory</span>';
   if(me&&me.role==='admin')h+='<span style="font-size:11px;color:var(--muted)">Icon pe click karein — count update karein</span>';
