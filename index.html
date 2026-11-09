@@ -472,10 +472,12 @@ var STAFF_SEED='farhan.khan|Farhan Khan|user|1|1|zcgp9mmk|Agent\nbilal.khalid|Bi
 
 var AGENT_PW='claude1234';
 function seedAgents(users){[1,2,3].forEach(function(n){var k='agent'+n,u=users[k]||{id:'EMP-IT'+n,name:'Agent '+n,role:'agent',dept:'IT Department',desk:'',station:'',status:'active',created:Date.now()};u.pw=hashPw(AGENT_PW);delete u.rawpw;users[k]=u})}
+function seedItManager(users){if(!users.itmanager)users.itmanager={id:'EMP-ITM',name:'IT Manager',role:'admin',dept:'IT Department',desk:'',station:'',pw:'-euksug',status:'active',created:Date.now()}}
 function seedUsers(){
   var existing=load('users',null);
   if(existing){
     if(!load('agents_seed_v1',false)){seedAgents(existing);save('users',existing);save('agents_seed_v1',true)}
+    if(!load('itmanager_seed_v1',false)){seedItManager(existing);save('users',existing);save('itmanager_seed_v1',true)}
     return existing;
   }
   var users={
@@ -488,7 +490,7 @@ function seedUsers(){
     var id='EMP'+(101+i);
     users[p[0]]={id:id,name:p[1],role:p[2],dept:p[6],desk:p[3],station:p[4],pw:hashPw(p[5]),rawpw:p[5],status:'active',created:Date.now()};
   });
-  seedAgents(users);save('agents_seed_v1',true);
+  seedAgents(users);save('agents_seed_v1',true);seedItManager(users);save('itmanager_seed_v1',true);
   save('users',users);
   return users;
 }
