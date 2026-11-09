@@ -418,11 +418,11 @@ input,textarea,select{-webkit-user-select:text;-moz-user-select:text;user-select
 var DESKS=8, STS_PER_DESK=12;
 var DEPTS=['Manager','IT Department','Team Lead','Agent','Diary Room'];
 var DEPT_IC={'Manager':'👔','IT Department':'🛠️','Team Lead':'⭐','Agent':'🎧','Diary Room':'📒'};
-var ISSUE_CATS=['Mouse','Headphone','Keyboard','Monitor','Computer','Laptop','Network','Software','Printer','UPS','Other'];
-var ISSUE_IC={'Mouse':'🖱️','Headphone':'🎧','Keyboard':'⌨️','Monitor':'🖥️','Computer':'🖥️','Laptop':'💻','Network':'📡','Software':'💿','Printer':'🖨️','UPS':'🔋','Other':'⚙️'};
+var ISSUE_CATS=['Mouse','Headphone','Keyboard','Monitor','LCD','Computer','Laptop','Network','Software','Printer','UPS','Other'];
+var ISSUE_IC={'Mouse':'🖱️','Headphone':'🎧','Keyboard':'⌨️','Monitor':'🖥️','LCD':'🖥️','Computer':'🖥️','Laptop':'💻','Network':'📡','Software':'💿','Printer':'🖨️','UPS':'🔋','Other':'⚙️'};
 var STATUSES=['Open','In Progress','Pending','Resolved','Closed','Rejected'];
 var STATUS_CLS={'Open':'badge-red','In Progress':'badge-yellow','Pending':'badge-blue','Resolved':'badge-green','Closed':'badge-gray','Rejected':'badge-red'};
-var ASSET_CATS=['Laptop','Desktop','Monitor','Keyboard','Mouse','Headphone','Printer','Router','Switch','UPS','Webcam','Other'];
+var ASSET_CATS=['Laptop','Desktop','Monitor','LCD','Keyboard','Mouse','Headphone','Printer','Router','Switch','UPS','Webcam','Other'];
 var ROLES_LABEL={'admin':'Admin','agent':'IT Support','user':'Staff','teamlead':'Team Lead','manager':'Manager'};
 
 // ═══════════════════════════════════════════════════════════
@@ -552,6 +552,7 @@ var INV_CATS=[
   {k:'laptop',    e:'\ud83d\udcbb', n:'Laptops'},
   {k:'desktop',   e:'\ud83d\udda5\ufe0f', n:'Desktop PCs'},
   {k:'monitor',   e:'\ud83d\uddc8', n:'Monitors'},
+  {k:'lcd',       e:'\ud83d\udda5\ufe0f', n:'LCD'},
   {k:'keyboard',  e:'\u2328\ufe0f', n:'Keyboards'},
   {k:'mouse',     e:'\ud83d\uddb1\ufe0f', n:'Mouse'},
   {k:'headphone', e:'\ud83c\udfa7', n:'Headphones'},
@@ -703,6 +704,7 @@ var U_CATS=[
   {c:'Keyboard',  e:'\u2328\ufe0f',       l:'Keyboard ka masla'},
   {c:'Laptop',    e:'\ud83d\udcbb',       l:'Laptop ka masla'},
   {c:'Monitor',   e:'\ud83d\udda5\ufe0f', l:'Monitor ka masla'},
+  {c:'LCD',       e:'\ud83d\udda5\ufe0f', l:'LCD ka masla'},
   {c:'Charger',   e:'\ud83d\udd0c',       l:'Charger ka masla'},
   {c:'Network',   e:'\ud83d\udce1',       l:'Internet / LAN Cable'},
   {c:'Printer',   e:'\ud83d\udda8\ufe0f', l:'Printer ka masla'},
