@@ -1,0 +1,723 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>
+<title>Hazri Hisab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one column, underline tabs on top, summary band first, tables below. */
+:root{
+  --bg:#F4F6F2; --surface:#FFFFFF; --ink:#16231F; --muted:#5C6B65; --line:#DCE2DC; --soft:#EDF1EC;
+  --accent:#0B6B5A; --accent-ink:#FFFFFF;
+  --good:#1E7A4B; --good-bg:#DDF0E4; --warn:#9A6200; --warn-bg:#F8EACB;
+  --bad:#B3261E; --bad-bg:#F9DEDA; --info:#2D5BA3; --info-bg:#DEE8F7;
+  --font:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1512; --surface:#151E1A; --ink:#E6EEE9; --muted:#93A39B; --line:#263530; --soft:#1B2722;
+    --accent:#3FBF9F; --accent-ink:#06251C;
+    --good:#58C68A; --good-bg:#173A29; --warn:#E3B455; --warn-bg:#3A2D10;
+    --bad:#F0857D; --bad-bg:#3F1C19; --info:#8DB4EE; --info-bg:#1B2D4A;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1512; --surface:#151E1A; --ink:#E6EEE9; --muted:#93A39B; --line:#263530; --soft:#1B2722;
+  --accent:#3FBF9F; --accent-ink:#06251C;
+  --good:#58C68A; --good-bg:#173A29; --warn:#E3B455; --warn-bg:#3A2D10;
+  --bad:#F0857D; --bad-bg:#3F1C19; --info:#8DB4EE; --info-bg:#1B2D4A;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--font);font-size:15px;line-height:1.55;
+  padding-block:20px 56px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  font-variant-numeric:tabular-nums}
+.app{max-width:1080px;margin:0 auto}
+h1{font-size:22px;line-height:1.3;margin:0;font-weight:700;letter-spacing:-.01em}
+h2{font-size:16px;font-weight:600;margin:28px 0 10px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;margin:2px 0 0}
+.tabs{display:flex;gap:2px;margin:16px 0 4px;border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+.tab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;color:var(--muted);
+  font:inherit;font-weight:500;padding:9px 14px;cursor:pointer;white-space:nowrap;margin-bottom:-1px}
+.tab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.tab:hover{color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible,.tab:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.stats>div{background:var(--surface);padding:14px 16px;min-width:0}
+.stats .k{font-size:12px;color:var(--muted)}
+.stats .v{font-size:24px;font-weight:700;line-height:1.25;margin-top:2px}
+.stats .v small{font-size:13px;font-weight:500;color:var(--muted)}
+.stats .main .v{color:var(--accent)}
+@media (min-width:760px){.stats.six{grid-template-columns:repeat(6,1fr)}.stats.four{grid-template-columns:repeat(4,1fr)}}
+.stats.four{grid-template-columns:repeat(2,1fr)}
+@media (min-width:760px){.stats.four{grid-template-columns:repeat(4,1fr)}}
+.v.good{color:var(--good)}.v.warn{color:var(--warn)}.v.bad{color:var(--bad)}.v.info{color:var(--info)}
+
+.chartbox{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.chart{display:flex;align-items:flex-end;gap:6px}
+.col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.pctl{font-size:11px;color:var(--muted)}
+.stack{width:100%;max-width:38px;height:120px;display:flex;flex-direction:column-reverse;background:var(--soft);border-radius:3px;overflow:hidden}
+.seg.ontime{background:var(--good)}.seg.late{background:var(--warn)}.seg.leave{background:var(--info)}.seg.abs{background:var(--bad)}
+.dl{font-size:11px;color:var(--muted);text-align:center;line-height:1.25}
+.dl b{display:block;font-size:12px;color:var(--ink);font-weight:600}
+.col.today .dl b{color:var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:12px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+
+.scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;background:var(--surface)}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+.num{text-align:right;white-space:nowrap}
+th.num{text-align:right}
+tfoot td{font-weight:600;border-top:2px solid var(--line);border-bottom:0;background:var(--soft)}
+td .sm{display:block;font-size:12px;color:var(--muted)}
+.linkbtn{appearance:none;background:none;border:0;padding:0;font:inherit;font-weight:600;color:var(--accent);cursor:pointer;text-align:left}
+.linkbtn:hover{text-decoration:underline}
+.pill{display:inline-block;padding:1px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill.good{background:var(--good-bg);color:var(--good)}.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}.pill.info{background:var(--info-bg);color:var(--info)}
+.pill.none{background:var(--soft);color:var(--muted)}
+
+.filters{display:flex;flex-wrap:wrap;gap:12px;margin:0 0 12px}
+.filters label,.field{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+.filters .grow{flex:1;min-width:160px}
+input,select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:7px 10px;min-width:0}
+input[type="number"]{width:120px}
+td input[type="number"]{width:110px;text-align:right}
+td select,td input[type="time"]{padding:5px 8px}
+.btn{appearance:none;font:inherit;font-weight:600;background:var(--accent);color:var(--accent-ink);border:0;border-radius:7px;padding:8px 16px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:var(--bad);color:#fff}
+.note{margin:0 0 14px;padding:10px 14px;border:1px dashed var(--line);border-radius:8px;color:var(--muted);font-size:13px}
+.sumline{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.sumline b{color:var(--ink)}
+.form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px}
+.msg{font-size:13px;margin:8px 0 0;color:var(--muted)}
+.msg.err{color:var(--bad)}
+.rules{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+.check{flex-direction:row;align-items:center;gap:8px;font-size:14px;color:var(--ink)}
+.example{margin-top:14px;padding:14px 16px;border-radius:10px;background:var(--soft);font-size:14px}
+.example p{margin:4px 0}
+.eq{font-size:12px;color:var(--muted);margin:8px 0 0}
+.monthbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.monthbar b{min-width:130px;text-align:center}
+.btn.sm{padding:5px 12px;font-size:13px}
+.btn[disabled]{opacity:.4;cursor:default}
+.teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.teamcard{appearance:none;font:inherit;text-align:left;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;cursor:pointer;display:flex;flex-direction:column;gap:2px;min-width:0}
+.teamcard span{font-size:12px;color:var(--muted)}
+.teamcard:hover{border-color:var(--accent)}
+.teamcard.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.teamcard b{overflow-wrap:anywhere}
+@media (prefers-reduced-motion:no-preference){.tab{transition:color .15s}}
+</style>
+
+<div class="app">
+  <header>
+    <h1>Hazri Hisab</h1>
+    <p class="sub"><a href="./" style="color:var(--accent)">← Back to IT Asset Management</a></p>
+    <p class="sub" id="sub"></p>
+    <div class="monthbar"><button class="btn ghost sm" data-month="prev" aria-label="Previous month">‹ Prev</button><b id="mlabel"></b><button class="btn ghost sm" id="mnext" data-month="next" aria-label="Next month">Next ›</button><button class="linkbtn" id="mcur" data-month="cur" hidden>Back to current month</button></div>
+  </header>
+  <nav class="tabs" role="tablist" aria-label="Menu">
+    <button class="tab" role="tab" data-tab="dash">Dashboard</button>
+    <button class="tab" role="tab" data-tab="team">Teams</button>
+    <button class="tab" role="tab" data-tab="att">Attendance</button>
+    <button class="tab" role="tab" data-tab="cam">Camera</button>
+    <button class="tab" role="tab" data-tab="sal">Salary</button>
+    <button class="tab" role="tab" data-tab="emp">Employees</button>
+    <button class="tab" role="tab" data-tab="set">Rules</button>
+  </nav>
+  <main id="view"></main>
+</div>
+
+<script>
+(function(){
+'use strict';
+var $ = function(s){ return document.querySelector(s); };
+var fmt = function(n){ return Math.round(n).toLocaleString('en-IN'); };
+var rs = function(n){ return 'Rs ' + fmt(n); };
+var esc = function(s){ return String(s).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
+var pct = function(x){ return (x*100).toFixed(1) + '%'; };
+
+/* ---------- calendar: follows the real date automatically ---------- */
+var NOW = new Date(), REAL_Y = NOW.getFullYear(), REAL_M = NOW.getMonth(), REAL_D = NOW.getDate();
+var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+var MSHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+var YEAR = REAL_Y, MON = REAL_M, MONTH_DAYS = 30, SUNDAYS = 0, MONTH_WORK = 0, LAST_DAY = 0, IS_CUR = true, TODAY = 0, CAMDAY = 0;
+var workDays = [], base = {};
+var dowOf = function(d){ return new Date(YEAR, MON, d).getDay(); };
+var dayLabel = function(d){ return DOW[dowOf(d)] + ' ' + d + ' ' + MSHORT[MON] + (IS_CUR && d===REAL_D ? ' (today)' : ''); };
+var attKey = function(id, d){ return id + '-' + YEAR + '-' + (MON+1) + '-' + d; };
+function setMonth(y, m){
+  YEAR = y; MON = m;
+  MONTH_DAYS = new Date(y, m+1, 0).getDate();
+  IS_CUR = (y===REAL_Y && m===REAL_M);
+  LAST_DAY = IS_CUR ? REAL_D : MONTH_DAYS;
+  SUNDAYS = 0; for (var d=1; d<=MONTH_DAYS; d++){ if (dowOf(d)===0) SUNDAYS++; }
+  MONTH_WORK = MONTH_DAYS - SUNDAYS;
+  workDays = []; for (var w=1; w<=LAST_DAY; w++){ if (dowOf(w)!==0) workDays.push(w); }
+  TODAY = workDays.length ? workDays[workDays.length-1] : 0;
+  CAMDAY = (IS_CUR && dowOf(REAL_D)!==0) ? REAL_D : 0;
+  genBase();
+  if (typeof state === 'object' && state) state.attDay = TODAY;
+}
+
+/* ---------- time helpers ---------- */
+var toMin = function(t){ var p = String(t).split(':'); return Number(p[0])*60 + Number(p[1]||0); };
+var two = function(n){ return (n<10?'0':'') + n; };
+var toHM = function(m){ return two(Math.floor(m/60)) + ':' + two(m%60); };
+
+/* ---------- storage (per browser, optional) ---------- */
+var KEY = 'hazri-hisab-v3';
+var DEF = {start:'07:15', end:'18:45', breakMin:60, grace:0, divMode:'cal', divisor:30, latePct:100, leaveCancels:true};
+var store = {settings:{}, att:{}, emp:{}, added:[], cam:[], dept:{}, removed:[], depts:[], seq:0};
+try{ var raw = localStorage.getItem(KEY); if (raw){ var o = JSON.parse(raw); store = {settings:o.settings||{}, att:o.att||{}, emp:o.emp||{}, added:o.added||[], cam:o.cam||[], dept:o.dept||{}, removed:o.removed||[], depts:o.depts||[], seq:o.seq||0}; } }catch(e){}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(store)); }catch(e){} }
+var settings = Object.assign({}, DEF, store.settings);
+
+/* ---------- demo data ---------- */
+function rng(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+var R = rng(777);
+/* real roster. Each person: 'Name|ID name|Role|W' (W = work from home). The ID name is the studio / ID name used on calls. */
+function P(line){ var a = line.split('|'); return {name:a[0], alias:a[1]||'', role:a[2]||'', wfh:a[3]==='W'}; }
+var SPEC = [
+  ['Management', '', [
+    'Syed Fazail Rizvi||S.Director Manager','Sohaib Amjad||Director Manager','Malaika||Head of Dialer Department','Sheikh Nouman||Project Manager',
+    'Muhammad Muzammil|Adam Carter|Queue Manager / Team Lead','M. Usama Rehman|Clay Jensen|Asst Project Manager','Hammad Sarwar|Brian Smith|',
+    'Hamayun Sarwar|Mark Edward|Closer QA Manager','Noor Alam|Jeff Hopkins|','Ubaid Shams||Reporting Executive']],
+  ['Dialer Team', 'Head of department: Malaika', [
+    'Furqan Kashif||Assistant Dialer Manager','Aniqa Asif||Dialer & Technical Support|W','Ilha Amjad||Dialer & Technical Support|W']],
+  ['Verification Team', 'Led by Hamayun Sarwar (Mark Edward)', [
+    'Abdul Shakoor|Ashton Wilson','Anas Butt|Isaac Ramirez','Meerab Ali|Emma Foster','Syed Mesum Ali|Daniel Carter','Ain-ul-Haya Khan|Lia Jenson',
+    'Awadh Gillani|Marco Sanders','Muhammad Talha Jamal|Juliano Garcia','Ahsan Nazir|Adam McCall','Farhan Khan|Max Johnson','Benish Shahmiri|Mary Johnson',
+    'Faraz Sheikh|Max Martin','Ammar Kyani|David Martin','Sabi Ullah Khan|Liam Murphy']],
+  ['Retention Rewrite (Shahmeer)', 'Shahmeer Team, Retention Rewrite Team', [
+    'Shahmeer Ali|Bill Becker','Malaika Mehmood|Kate Ray','Alvin Peterson|Adeel Zafar','Adil Rehmat|Albert Martin','Haris Shahzad|Sam Reid|Closer Retention','Hazel cooper|Manahil khan||W']],
+  ['Retention Rewrite (Dan Deville)', 'Dan Deville, Retention Rewrite Team', [
+    'Dan Deville','Arsalan Bin Yousaf|Steve','Jamal Khan|Gabriel Jorge','Farhan Ijaz|James Smith','Faiz Ullah|JSon Cross','Julia walker|fizza khan||W']],
+  ['QA Team', 'Led by Hamayun Sarwar (Mark Edward)', ['Aarish','Ayeshaa','Keith Wilson|Esha']],
+  ['Senior Closers (Jeff Hopkins)', 'Team of Noor Alam (Jeff Hopkins)', [
+    'Usman Shakoor|Ethan Walker','Osaid Raza|Leo Garcia','Rania Qadeer|Alaska Jacob','Emaan Aurangazeb|Faith Brooks','Daniyal Haider|Daniel Parker',
+    'SARAH BLISS|hamdia qamar||W','Ray jackson|Moin Abid','Arham Naveed|Jay Wilson','Zaheen Fatima|Sage Miller','Furqan Aslam|Brandon Adams']],
+  ['Senior Closers (Clay Jensen)', 'Team of M. Usama Rehman (Clay Jensen)', [
+    'M. Arsalan Javed|Jordan Davis','Shazeb Butt|Ashton Mckenzie','Shayan Sheikh|SHAWN Rex','Maryam Adnan|Sophia Adams','Steve Wilson|Saqib Ishaq',
+    'Abuzar Ghaffari|Daniel Brown','Malaika Ikram|Emily Wolf','Amna Akmal|Maria Castillo','Ghusharib Anjum|Steve Brooks','Steve peterson','Syed Usman Shah|Cameron J Adams']],
+  ['IT Team', 'Led by Muhammad Zain', [
+    'Muhammad Zain||IT Team Lead','M.Uzair Zai||PHP/Laravel Developer','M. Kashif Rehman||Laravel Developer','Jamil Ur Rehman||Senior Laravel Developer',
+    'Aslam Baig','M Kamran||IT','M Saad||IT support','Abdul Moiz||IT']],
+  ['Digi Aura (Marketing)', 'Team Marketing', [
+    'Ali Hussain Zaidi||Business Head','Azan Shahbaz','Danyal Khan','Ijaz||SEO Executive','Muhammad Umar Sharif','Furqan ur Rehman','Faran Zia','Abdullah','Romail Emmaneul']],
+  ['Training Section', '', [
+    'Suliman Safi','Hashir Awan|Jose Manuel','Numaira Ahmad|Mary James','Pakeeza Nawab|veronicawiliams','Muhammad Hamza|Neethan Reed','Moeez Haider',
+    'Syed Nabeel Ali Shah|Zach Romero','Muhammad Urwa Qazi|Javier Martinez','Abdullah Butt|Jose Rodriguez','Hizber','Tayyab Nadeem|Jason Murphy',
+    'Usman Ali|Frank Morrison','Suliman Khan|Mark Williams','Adam Aldridge','Minahil Zaib']]
+];
+var TEAM_NOTE = {}; SPEC.forEach(function(d){ TEAM_NOTE[d[0]] = d[1]; });
+var deptNames = [];
+function rebuildDepts(){ deptNames = SPEC.map(function(d){ return d[0]; }).concat(store.depts); }
+rebuildDepts();
+var SPLITS = [[90000,.30],[80000,.35],[70000,.20],[60000,.15]];
+function pickBasic(){ var x=R(), s=0; for (var k=0;k<SPLITS.length;k++){ s+=SPLITS[k][1]; if (x<s) return SPLITS[k][0]; } return 80000; }
+
+var baseEmps = [];
+SPEC.forEach(function(d){
+  d[2].forEach(function(line){
+    var p = P(line), id = 'E' + ('00'+(baseEmps.length+1)).slice(-3), basic = pickBasic();
+    baseEmps.push({id:id, name:p.name, alias:p.alias, role:p.role, wfh:p.wfh, dept:d[0], basic:basic, bonus:100000-basic});
+  });
+});
+/* demo attendance for the viewed month: base[id][day] = {s:'in'|'A'|'V', t:'HH:MM'} */
+function genBase(){
+  var r = rng(YEAR*100 + MON + 1);
+  base = {};
+  baseEmps.forEach(function(e){
+    var pAbs = r()<0.35 ? 0 : 0.015+r()*0.04;
+    var pLate = 0.02+r()*0.16;
+    var pLv = r()<0.5 ? 0 : 0.02;
+    base[e.id] = {};
+    workDays.forEach(function(d){
+      var x = r();
+      if (x < pAbs) base[e.id][d] = {s:'A'};
+      else if (x < pAbs+pLv) base[e.id][d] = {s:'V'};
+      else { var late = r()<pLate; var m = late ? 436+Math.floor(r()*70) : 435-Math.floor(r()*22); base[e.id][d] = {s:'in', t:toHM(m)}; }
+    });
+  });
+}
+var emps = [];
+function buildEmps(){
+  emps = baseEmps.filter(function(e){ return store.removed.indexOf(e.id)<0; }).map(function(e){ var c = Object.assign({}, e); var ov = store.emp[e.id]; if (ov){ c.basic = ov.basic; c.bonus = ov.bonus; if (ov.name) c.name = ov.name; if (ov.alias!==undefined) c.alias = ov.alias; if (ov.role!==undefined) c.role = ov.role; } return c; });
+  store.added.forEach(function(a){ var c = Object.assign({}, a); var ov = store.emp[a.id]; if (ov){ c.basic = ov.basic; c.bonus = ov.bonus; if (ov.name) c.name = ov.name; if (ov.alias!==undefined) c.alias = ov.alias; if (ov.role!==undefined) c.role = ov.role; } emps.push(c); });
+}
+buildEmps();
+
+/* ---------- rules and calculation ---------- */
+var startM = function(){ return toMin(settings.start) + Number(settings.grace||0); };
+function getRec(id, d){ return store.att[attKey(id,d)] || (base[id] && base[id][d]) || null; }
+function statusOf(r){ if (!r) return null; if (r.s==='A') return 'A'; if (r.s==='V') return 'V'; return toMin(r.t) > startM() ? 'L' : 'P'; }
+
+function divisorFor(){ return settings.divMode==='work' ? Math.max(1,MONTH_WORK) : settings.divMode==='fix' ? Math.max(1,Number(settings.divisor)) : MONTH_DAYS; }
+function deptLate(d){ var x = store.dept[d]; return (x && x.latePct!==null && x.latePct!==undefined && x.latePct!=='') ? Number(x.latePct) : Number(settings.latePct); }
+function newId(){ store.seq = (store.seq||0) + 1; return 'N' + ('00'+store.seq).slice(-3); }
+function calc(e){
+  var inn=0, late=0, abs=0, lv=0;
+  workDays.forEach(function(d){
+    var r = getRec(e.id, d); if (!r) return;
+    if (r.s==='A') abs++; else if (r.s==='V') lv++;
+    else { inn++; if (toMin(r.t) > startM()) late++; }
+  });
+  var perDay = e.basic / divisorFor();
+  var dedAbs = Math.round(abs * perDay);
+  var dedLate = Math.round(late * perDay * deptLate(e.dept) / 100);
+  var bonusOK = abs === 0 && !(settings.leaveCancels && lv > 0);
+  var bonusPaid = bonusOK ? e.bonus : 0;
+  return {inn:inn, late:late, abs:abs, lv:lv, perDay:perDay, dedAbs:dedAbs, dedLate:dedLate, ded:dedAbs+dedLate,
+          bonusOK:bonusOK, bonusPaid:bonusPaid, bonusLost:e.bonus-bonusPaid, net:e.basic-dedAbs-dedLate+bonusPaid};
+}
+function dayStats(d){
+  var s = {n:0,inn:0,late:0,ontime:0,lv:0,abs:0};
+  emps.forEach(function(e){
+    var r = getRec(e.id, d); if (!r) return; s.n++;
+    var k = statusOf(r);
+    if (k==='A') s.abs++; else if (k==='V') s.lv++; else { s.inn++; if (k==='L') s.late++; else s.ontime++; }
+  });
+  return s;
+}
+
+/* ---------- UI state ---------- */
+var state = {tab:'dash', attDay:0, attDept:'all', attQ:'', salDept:'all', salQ:'', salSort:'name', empDept:'all', empQ:'', confirmReset:false, teamSel:'IT Team', rmConfirm:''};
+var PILL = {P:['Present','good'], L:['Late','warn'], V:['On leave','info'], A:['Absent','bad']};
+var pill = function(k){ return k ? '<span class="pill '+PILL[k][1]+'">'+PILL[k][0]+'</span>' : '<span class="pill none">—</span>'; };
+var sub = function(e){ return e.id + ' · ' + esc(e.dept) + (e.alias ? ' · ID: ' + esc(e.alias) : '') + (e.role ? ' · ' + esc(e.role) : '') + (e.wfh ? ' · WFH' : ''); };
+function saveEmp(e){ store.emp[e.id] = {basic:e.basic, bonus:e.bonus, name:e.name, alias:e.alias||'', role:e.role||''}; }
+var deptOptions = function(sel, withAll){ return (withAll?'<option value="all"'+(sel==='all'?' selected':'')+'>All departments</option>':'') + deptNames.map(function(d){ return '<option value="'+d+'"'+(d===sel?' selected':'')+'>'+d+'</option>'; }).join(''); };
+var match = function(e, dept, q){ q = q.trim().toLowerCase(); return (dept==='all'||e.dept===dept) && (!q || e.name.toLowerCase().indexOf(q)>-1 || e.id.toLowerCase().indexOf(q)>-1 || (e.alias||'').toLowerCase().indexOf(q)>-1 || (e.role||'').toLowerCase().indexOf(q)>-1); };
+
+/* ---------- dashboard ---------- */
+function dashView(){
+  var t = dayStats(TODAY);
+  var mname = MONTHS[MON];
+  if (!TODAY) return '<h2>'+mname+' '+YEAR+' working days</h2><p class="note">No working day has been recorded yet this month ('+MONTH_DAYS+' days, '+SUNDAYS+' Sundays off, '+MONTH_WORK+' working days). Attendance will appear here from the first working day.</p>';
+  var tp = t.n ? t.inn/t.n : 0;
+  var cols = workDays.map(function(d){
+    var s = dayStats(d), n = s.n || 1;
+    var h = function(x){ return (x/n*100).toFixed(2)+'%'; };
+    return '<div class="col'+(d===TODAY?' today':'')+'" title="'+dayLabel(d)+': present '+s.inn+', late '+s.late+', leave '+s.lv+', absent '+s.abs+'">'
+      + '<span class="pctl">'+Math.round(s.inn/n*100)+'%</span>'
+      + '<div class="stack"><div class="seg ontime" style="height:'+h(s.ontime)+'"></div><div class="seg late" style="height:'+h(s.late)+'"></div><div class="seg leave" style="height:'+h(s.lv)+'"></div><div class="seg abs" style="height:'+h(s.abs)+'"></div></div>'
+      + '<div class="dl"><b>'+d+'</b>'+DOW[dowOf(d)]+'</div></div>';
+  }).join('');
+
+  var agg = {}, tot = {cnt:0,gross:0,net:0,ded:0,lost:0,inn:0,rec:0,todayIn:0,todayN:0};
+  deptNames.forEach(function(d){ agg[d] = {cnt:0,gross:0,net:0,inn:0,rec:0,todayIn:0,todayN:0}; });
+  emps.forEach(function(e){
+    var c = calc(e), a = agg[e.dept]; if (!a) return;
+    var r = getRec(e.id, TODAY), k = statusOf(r);
+    a.cnt++; a.gross += e.basic+e.bonus; a.net += c.net; a.inn += c.inn; a.rec += c.inn+c.abs+c.lv;
+    if (r){ a.todayN++; if (k==='P'||k==='L') a.todayIn++; }
+    tot.cnt++; tot.gross += e.basic+e.bonus; tot.net += c.net; tot.ded += c.ded; tot.lost += c.bonusLost; tot.inn += c.inn; tot.rec += c.inn+c.abs+c.lv;
+    if (r){ tot.todayN++; if (k==='P'||k==='L') tot.todayIn++; }
+  });
+  var teamRows = deptNames.map(function(d){
+    var m = emps.filter(function(e){ return e.dept===d; });
+    var names = m.length>8 ? m.slice(0,3).map(function(e){ return esc(e.name); }).join(', ')+' … '+esc(m[m.length-1].name) : m.map(function(e){ return esc(e.name); }).join(', ');
+    return '<tr><td><button class="linkbtn" data-team="'+esc(d)+'">'+esc(d)+'</button></td><td class="num">'+m.length+'</td><td>'+names+'</td></tr>';
+  }).join('');
+  var rows = deptNames.map(function(d){
+    var a = agg[d];
+    return '<tr><td><button class="linkbtn" data-goto="sal" data-dept="'+d+'">'+d+'</button></td><td class="num">'+a.cnt+'</td><td class="num">'+rs(a.gross)+'</td><td class="num">'+a.todayIn+' / '+a.todayN+'</td><td class="num">'+(a.rec?pct(a.inn/a.rec):'—')+'</td><td class="num">'+rs(a.net)+'</td></tr>';
+  }).join('');
+
+  return '<h2>'+mname+' '+YEAR+' working days</h2>'
+  + '<div class="stats four">'
+  + '<div><div class="k">Days in month</div><div class="v">'+MONTH_DAYS+'</div></div>'
+  + '<div><div class="k">Sundays off</div><div class="v">'+SUNDAYS+'</div></div>'
+  + '<div class="main"><div class="k">Working days in month</div><div class="v">'+MONTH_WORK+'</div></div>'
+  + '<div><div class="k">Done / remaining</div><div class="v">'+workDays.length+' <small>/ '+(MONTH_WORK-workDays.length)+' left</small></div></div>'
+  + '</div>'
+  + '<h2>'+(IS_CUR && TODAY===REAL_D ? 'Today\'s attendance' : 'Latest recorded day')+' · '+dayLabel(TODAY).replace(' (today)','')+'</h2>'
+  + '<div class="stats six">'
+  + '<div class="main"><div class="k">Attendance</div><div class="v">'+pct(tp)+'</div></div>'
+  + '<div><div class="k">Present</div><div class="v">'+t.inn+' <small>/ '+t.n+'</small></div></div>'
+  + '<div><div class="k">On time</div><div class="v good">'+t.ontime+'</div></div>'
+  + '<div><div class="k">Late</div><div class="v warn">'+t.late+'</div></div>'
+  + '<div><div class="k">On leave</div><div class="v info">'+t.lv+'</div></div>'
+  + '<div><div class="k">Absent</div><div class="v bad">'+t.abs+'</div></div>'
+  + '</div>'
+
+  + '<h2>Daily attendance, '+workDays[0]+' to '+workDays[workDays.length-1]+' '+mname+' (Sundays off)</h2>'
+  + '<div class="chartbox"><div class="chart">'+cols+'</div>'
+  + '<div class="legend"><span><i style="background:var(--good)"></i>On time</span><span><i style="background:var(--warn)"></i>Late</span><span><i style="background:var(--info)"></i>On leave</span><span><i style="background:var(--bad)"></i>Absent</span><span>Number on top = present % that day</span></div></div>'
+
+  + '<h2>By department</h2>'
+  + '<div class="scroll"><table><thead><tr><th>Department</th><th class="num">Employees</th><th class="num">Monthly salary</th><th class="num">Present today</th><th class="num">Month attendance</th><th class="num">Payable so far</th></tr></thead><tbody>'+rows+'</tbody>'
+  + '<tfoot><tr><td>Total</td><td class="num">'+tot.cnt+'</td><td class="num">'+rs(tot.gross)+'</td><td class="num">'+tot.todayIn+' / '+tot.todayN+'</td><td class="num">'+(tot.rec?pct(tot.inn/tot.rec):'—')+'</td><td class="num">'+rs(tot.net)+'</td></tr></tfoot></table></div>'
+
+  + '<h2>Teams <small style="font-weight:400;color:var(--muted)">(click a team to open it)</small></h2>'
+  + '<div class="scroll"><table><thead><tr><th>Team</th><th class="num">People</th><th>Members</th></tr></thead><tbody>'+teamRows+'</tbody></table></div>'
+  + '<h2>Salary summary, records up to '+LAST_DAY+' '+mname+'</h2>'
+  + '<div class="stats four">'
+  + '<div><div class="k">Total salary (basic + bonus)</div><div class="v">'+rs(tot.gross)+'</div></div>'
+  + '<div><div class="k">− Late / absence deductions</div><div class="v warn">'+rs(tot.ded)+'</div></div>'
+  + '<div><div class="k">− Punctuality bonus lost</div><div class="v bad">'+rs(tot.lost)+'</div></div>'
+  + '<div class="main"><div class="k">= Payable salary</div><div class="v">'+rs(tot.net)+'</div></div>'
+  + '</div>'
+  + '<p class="eq">At month end this same calculation gives each employee\'s final salary. Click a department name to see its employees\' salaries.</p>';
+}
+
+/* ---------- attendance ---------- */
+function attView(){
+  var days = workDays.slice().reverse();
+  return '<h2>Mark daily attendance</h2>'
+  + '<p class="note">Camera face recognition is the next step. For now attendance is marked here; later the camera will fill in these same records automatically.</p>'
+  + '<div class="filters">'
+  + '<label>Date<select id="attDay" data-f="attDay">'+days.map(function(d){ return '<option value="'+d+'"'+(d===state.attDay?' selected':'')+'>'+dayLabel(d)+'</option>'; }).join('')+'</select></label>'
+  + '<label>Department<select id="attDept" data-f="attDept">'+deptOptions(state.attDept,true)+'</select></label>'
+  + '<label class="grow">Search<input type="search" id="attQ" data-f="attQ" value="'+esc(state.attQ)+'" placeholder="Name, ID name or role"></label>'
+  + '</div>'
+  + '<p class="sumline" id="attSum"></p>'
+  + '<div class="scroll"><table><thead><tr><th>Employee</th><th>Attendance</th><th>Arrival time</th><th>Status</th></tr></thead><tbody id="attBody"></tbody></table></div>';
+}
+function fillAtt(){
+  var d = state.attDay, s = dayStats(d);
+  $('#attSum').innerHTML = '<b>'+dayLabel(d)+'</b> · Present '+s.inn+' (on time '+s.ontime+', late '+s.late+') · Leave '+s.lv+' · Absent '+s.abs+' · Duty starts '+settings.start;
+  var list = emps.filter(function(e){ return match(e, state.attDept, state.attQ); });
+  $('#attBody').innerHTML = list.map(function(e){
+    var r = getRec(e.id, d), k = statusOf(r), sel = r ? r.s : '';
+    return '<tr><td>'+esc(e.name)+'<span class="sm">'+sub(e)+'</span></td>'
+      + '<td><select data-act="status" data-id="'+e.id+'" aria-label="Attendance">'
+      + (r ? '' : '<option value="" selected disabled>—</option>')
+      + '<option value="in"'+(sel==='in'?' selected':'')+'>Present</option><option value="V"'+(sel==='V'?' selected':'')+'>On leave</option><option value="A"'+(sel==='A'?' selected':'')+'>Absent</option></select></td>'
+      + '<td><input type="time" data-act="time" data-id="'+e.id+'" value="'+(r&&r.s==='in'?r.t:'')+'"'+(r&&r.s==='in'?'':' disabled')+' aria-label="Arrival time"></td>'
+      + '<td>'+pill(k)+(r&&r.src==='camera'?'<span class="sm">marked by camera</span>':'')+'</td></tr>';
+  }).join('') || '<tr><td colspan="4">No employees found.</td></tr>';
+}
+
+/* ---------- salary ---------- */
+function salView(){
+  return '<h2>Monthly salary</h2>'
+  + '<div class="filters">'
+  + '<label>Department<select id="salDept" data-f="salDept">'+deptOptions(state.salDept,true)+'</select></label>'
+  + '<label>Sort by<select id="salSort" data-f="salSort"><option value="name"'+(state.salSort==='name'?' selected':'')+'>Name</option><option value="net"'+(state.salSort==='net'?' selected':'')+'>Payable salary (high to low)</option><option value="ded"'+(state.salSort==='ded'?' selected':'')+'>Deductions (high to low)</option></select></label>'
+  + '<label class="grow">Search<input type="search" id="salQ" data-f="salQ" value="'+esc(state.salQ)+'" placeholder="Name, ID name or role"></label>'
+  + '</div>'
+  + '<p class="sumline">This month has '+MONTH_WORK+' working days ('+workDays.length+' recorded so far). Records up to '+LAST_DAY+' '+MONTHS[MON]+'. One day\'s pay = basic ÷ '+divisorFor()+'. A late arrival deducts '+settings.latePct+'% of a day (a team can have its own late % in the Teams tab); an absence deducts a full day and cancels the whole punctuality bonus.</p>'
+  + '<div class="scroll"><table style="min-width:900px"><thead><tr><th>Employee</th><th class="num">Basic</th><th class="num">Bonus</th><th class="num">Present (of '+workDays.length+')</th><th class="num">Late</th><th class="num">Leave</th><th class="num">Absent</th><th class="num">Deduction</th><th>Bonus</th><th class="num">Payable</th></tr></thead><tbody id="salBody"></tbody><tfoot id="salFoot"></tfoot></table></div>';
+}
+function fillSal(){
+  var list = emps.filter(function(e){ return match(e, state.salDept, state.salQ); }).map(function(e){ return {e:e, c:calc(e)}; });
+  list.sort(function(a,b){
+    if (state.salSort==='net') return b.c.net - a.c.net;
+    if (state.salSort==='ded') return b.c.ded - a.c.ded;
+    return a.e.name.localeCompare(b.e.name);
+  });
+  var t = {basic:0,bonus:0,ded:0,lost:0,net:0};
+  $('#salBody').innerHTML = list.map(function(x){
+    var e=x.e, c=x.c;
+    t.basic+=e.basic; t.bonus+=e.bonus; t.ded+=c.ded; t.lost+=c.bonusLost; t.net+=c.net;
+    return '<tr><td>'+esc(e.name)+'<span class="sm">'+sub(e)+'</span></td>'
+      + '<td class="num">'+fmt(e.basic)+'</td><td class="num">'+fmt(e.bonus)+'</td>'
+      + '<td class="num">'+c.inn+'</td><td class="num">'+c.late+'</td><td class="num">'+c.lv+'</td><td class="num">'+c.abs+'</td>'
+      + '<td class="num">'+(c.ded?'−'+fmt(c.ded):'0')+'</td>'
+      + '<td>'+(c.bonusOK?'<span class="pill good">Kept</span>':'<span class="pill bad">Lost −'+fmt(c.bonusLost)+'</span>')+'</td>'
+      + '<td class="num"><b>'+fmt(c.net)+'</b></td></tr>';
+  }).join('') || '<tr><td colspan="10">No employees found.</td></tr>';
+  $('#salFoot').innerHTML = '<tr><td>Total ('+list.length+')</td><td class="num">'+fmt(t.basic)+'</td><td class="num">'+fmt(t.bonus)+'</td><td></td><td></td><td></td><td></td><td class="num">−'+fmt(t.ded)+'</td><td class="num">−'+fmt(t.lost)+'</td><td class="num">'+fmt(t.net)+'</td></tr>';
+}
+
+/* ---------- employees ---------- */
+function empView(){
+  return '<h2>Add a new employee</h2>'
+  + '<div class="form">'
+  + '<label class="field grow">Name<input type="text" id="newName" placeholder="Full name"></label>'
+  + '<label class="field">Department<select id="newDept">'+deptOptions('IT',false)+'</select></label>'
+  + '<label class="field">Basic<input type="number" id="newBasic" min="0" step="1000" value="80000"></label>'
+  + '<label class="field">Punctuality bonus<input type="number" id="newBonus" min="0" step="1000" value="20000"></label>'
+  + '<button class="btn" data-add="1">Add</button></div>'
+  + '<p class="msg" id="addMsg"></p>'
+  + '<h2>All employees</h2>'
+  + '<div class="filters"><label>Department<select id="empDept" data-f="empDept">'+deptOptions(state.empDept,true)+'</select></label>'
+  + '<label class="grow">Search<input type="search" id="empQ" data-f="empQ" value="'+esc(state.empQ)+'" placeholder="Name, ID name or role"></label></div>'
+  + '<p class="sumline" id="empSum"></p>'
+  + '<div class="scroll"><table><thead><tr><th>Employee</th><th class="num">Basic</th><th class="num">Punctuality bonus</th><th class="num">Total</th></tr></thead><tbody id="empBody"></tbody></table></div>';
+}
+function fillEmp(){
+  var list = emps.filter(function(e){ return match(e, state.empDept, state.empQ); });
+  var total = 0; list.forEach(function(e){ total += e.basic+e.bonus; });
+  $('#empSum').innerHTML = '<b>'+list.length+'</b> employees · Total monthly salary <b>'+rs(total)+'</b>. You can rename anyone and change basic or bonus; click outside the box to save.';
+  $('#empBody').innerHTML = list.map(function(e){
+    return '<tr><td><input type="text" data-act="name" data-id="'+e.id+'" value="'+esc(e.name)+'" aria-label="Name" style="width:100%;min-width:150px"><span class="sm">'+sub(e)+'</span></td>'
+      + '<td class="num"><input type="number" min="0" step="1000" data-act="basic" data-id="'+e.id+'" value="'+e.basic+'" aria-label="Basic"></td>'
+      + '<td class="num"><input type="number" min="0" step="1000" data-act="bonus" data-id="'+e.id+'" value="'+e.bonus+'" aria-label="Bonus"></td>'
+      + '<td class="num"><b>'+fmt(e.basic+e.bonus)+'</b></td></tr>';
+  }).join('') || '<tr><td colspan="4">No employees found.</td></tr>';
+}
+
+/* ---------- rules ---------- */
+function setView(){
+  var s = settings, mins = toMin(s.end) - toMin(s.start) - Number(s.breakMin);
+  var perDay = 80000 / divisorFor();
+  var latePay = perDay * Number(s.latePct) / 100;
+  return '<h2>Duty and deduction rules</h2>'
+  + '<div class="rules">'
+  + '<label class="field">Duty starts<input type="time" data-k="start" value="'+s.start+'"></label>'
+  + '<label class="field">Duty ends<input type="time" data-k="end" value="'+s.end+'"></label>'
+  + '<label class="field">Break in between (minutes)<input type="number" min="0" data-k="breakMin" value="'+s.breakMin+'"></label>'
+  + '<label class="field">Late grace (minutes)<input type="number" min="0" data-k="grace" value="'+s.grace+'"></label>'
+  + '<label class="field">One day\'s pay = basic ÷<select data-k="divMode"><option value="cal"'+(s.divMode==='cal'?' selected':'')+'>Days in the month ('+MONTH_DAYS+' now)</option><option value="work"'+(s.divMode==='work'?' selected':'')+'>Working days, Sundays off ('+MONTH_WORK+' now)</option><option value="fix"'+(s.divMode==='fix'?' selected':'')+'>A fixed number</option></select></label>'
+  + '<label class="field">Fixed number (used only if chosen)<input type="number" min="1" data-k="divisor" value="'+s.divisor+'"></label>'
+  + '<label class="field">Late deduction (% of a day)<input type="number" min="0" max="100" data-k="latePct" value="'+s.latePct+'"></label>'
+  + '<label class="field check"><input type="checkbox" data-k="leaveCancels"'+(s.leaveCancels?' checked':'')+'> Annual leave also cancels the bonus</label>'
+  + '</div>'
+  + '<div class="example"><p><b>Example: basic 80,000 + bonus 20,000</b></p>'
+  + '<p>Daily work: '+Math.floor(mins/60)+' h '+(mins%60)+' min ('+s.start+' to '+s.end+', '+s.breakMin+' min break)</p>'
+  + '<p>One day\'s pay = '+rs(perDay)+'</p>'
+  + '<p>One late arrival = '+rs(latePay)+' deducted</p>'
+  + '<p>One day absent = '+rs(perDay)+' deducted, and the full 20,000 bonus is lost</p></div>'
+  + '<h2>Demo data</h2>'
+  + '<p class="sumline">Changed attendance, salaries and rules are kept in this browser only. Resetting restores everything to the original demo.</p>'
+  + '<button class="btn '+(state.confirmReset?'danger':'ghost')+'" data-reset="1">'+(state.confirmReset?'Really reset?':'Reset demo')+'</button>';
+}
+
+
+
+/* ---------- teams ---------- */
+function teamView(){
+  if (deptNames.indexOf(state.teamSel) < 0) state.teamSel = deptNames[0];
+  var sel = state.teamSel, mem = emps.filter(function(e){ return e.dept===sel; });
+  var ds = store.dept[sel] || {};
+  var total = ds.total!==undefined ? ds.total : 100000, type = ds.type || 'pct', val = ds.val!==undefined ? ds.val : 20;
+  var late = (ds.latePct===null || ds.latePct===undefined) ? '' : ds.latePct;
+  var pay = 0; mem.forEach(function(e){ pay += e.basic + e.bonus; });
+  var cards = deptNames.map(function(d){
+    var n = emps.filter(function(e){ return e.dept===d; }).length;
+    return '<button class="teamcard'+(d===sel?' on':'')+'" data-team="'+esc(d)+'"><b>'+esc(d)+'</b><span>'+n+' people</span></button>';
+  }).join('');
+  var bonusAmt = type==='pct' ? Math.round(total*val/100) : val;
+  var rows = mem.map(function(e){
+    return '<tr><td><input type="text" data-act="name" data-id="'+e.id+'" value="'+esc(e.name)+'" aria-label="Name" style="width:100%;min-width:160px"><span class="sm">'+e.id+(e.wfh?' · WFH':'')+'</span></td>'
+      + '<td><input type="text" data-act="alias" data-id="'+e.id+'" value="'+esc(e.alias||'')+'" aria-label="ID name" style="width:100%;min-width:130px"></td>'
+      + '<td><input type="text" data-act="role" data-id="'+e.id+'" value="'+esc(e.role||'')+'" aria-label="Role" style="width:100%;min-width:150px"></td>'
+      + '<td class="num"><input type="number" min="0" step="1000" data-act="basic" data-id="'+e.id+'" value="'+e.basic+'" aria-label="Basic"></td>'
+      + '<td class="num"><input type="number" min="0" step="1000" data-act="bonus" data-id="'+e.id+'" value="'+e.bonus+'" aria-label="Bonus"></td>'
+      + '<td class="num"><b>'+fmt(e.basic+e.bonus)+'</b></td>'
+      + '<td class="num"><button class="btn sm '+(state.rmConfirm===e.id?'danger':'ghost')+'" data-rm="'+e.id+'">'+(state.rmConfirm===e.id?'Really remove?':'Remove')+'</button></td></tr>';
+  }).join('') || '<tr><td colspan="7">Nobody in this team yet. Add a name below.</td></tr>';
+  return '<h2>Teams</h2><div class="teams">'+cards+'</div>'
+  + '<div class="form" style="margin-top:12px"><label class="field grow">New team<input type="text" id="newTeam" placeholder="Team name, e.g. Quality"></label><button class="btn ghost" data-newteam="1">Add team</button></div>'
+  + '<p class="msg" id="teamMsg"></p>'
+  + '<h2>'+esc(sel)+' · '+mem.length+' people · monthly payroll '+rs(pay)+'</h2>'
+  + (TEAM_NOTE[sel] ? '<p class="sumline">'+esc(TEAM_NOTE[sel])+'</p>' : '')
+  + '<div class="rules">'
+  + '<label class="field">Total salary per person<input type="number" min="0" step="1000" id="tsTotal" value="'+total+'"></label>'
+  + '<label class="field">Bonus given as<select id="tsType"><option value="pct"'+(type==='pct'?' selected':'')+'>Percent of total</option><option value="amt"'+(type==='amt'?' selected':'')+'>Fixed amount</option></select></label>'
+  + '<label class="field">Bonus ('+(type==='pct'?'%':'Rs')+')<input type="number" min="0" id="tsVal" value="'+val+'"></label>'
+  + '<label class="field">Late deduction % of a day (empty = use Rules)<input type="number" min="0" max="100" id="tsLate" value="'+late+'"></label>'
+  + '</div>'
+  + '<div class="form" style="margin-top:8px"><span class="sumline" style="margin:0;flex:1;min-width:200px">Result per person: basic <b>'+rs(total-bonusAmt)+'</b> + bonus <b>'+rs(bonusAmt)+'</b> = <b>'+rs(total)+'</b>. This is applied to everyone in '+esc(sel)+'.</span><button class="btn" data-teamapply="1">Apply to all in '+esc(sel)+'</button></div>'
+  + '<p class="msg" id="applyMsg"></p>'
+  + '<h2>Members</h2>'
+  + '<div class="scroll"><table style="min-width:900px"><thead><tr><th>Name</th><th>ID name</th><th>Role</th><th class="num">Basic</th><th class="num">Punctuality bonus</th><th class="num">Total</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+  + '<div class="form" style="margin-top:12px"><label class="field grow">Add a person to '+esc(sel)+'<input type="text" id="tmName" placeholder="Full name"></label><label class="field">ID name (optional)<input type="text" id="tmAlias"></label><label class="field">Role (optional)<input type="text" id="tmRole"></label><button class="btn" data-tadd="1">Add person</button></div>'
+  + '<p class="msg" id="tmMsg">New people get the salary set above. Change a single person in the table; you can rename anyone.</p>';
+}
+
+/* ---------- camera ---------- */
+var CAMS = [['Main Gate (Entry)','192.168.1.64'],['Reception','192.168.1.65'],['Office Floor','192.168.1.66']];
+function nowHM(){ var d = new Date(); return two(d.getHours()) + ':' + two(d.getMinutes()); }
+function camView(){
+  if (!CAMDAY) return '<h2>Camera attendance (CCTV)</h2><p class="note">'+(IS_CUR ? 'Today is a Sunday (weekly off), so the camera does not mark attendance.' : 'The camera marks attendance for today only. Go back to the current month to test it.')+'</p>';
+  var opts = emps.map(function(e){ return '<option value="'+e.id+'">'+esc(e.name)+(e.alias?' / '+esc(e.alias):'')+' ('+e.id+')</option>'; }).join('');
+  var camRows = CAMS.map(function(c,i){ return '<tr><td>'+c[0]+'</td><td>'+c[1]+'</td><td><span class="pill none">Not connected</span></td><td>'+(i===0?'Entry':i===1?'Entry':'Monitoring')+'</td></tr>'; }).join('');
+  return '<h2>Camera attendance (CCTV)</h2>'
+  + '<p class="note">When the camera sees a registered face, the app marks that person present with the date and time. Real connection to your CCTV needs a small program running in your office; this page shows how it will work. Use the test box below to try it.</p>'
+  + '<div class="stats four">'
+  + '<div><div class="k">Cameras connected</div><div class="v">0 <small>/ '+CAMS.length+'</small></div></div>'
+  + '<div><div class="k">Faces registered</div><div class="v">0 <small>/ '+emps.length+'</small></div></div>'
+  + '<div><div class="k">Camera marks today</div><div class="v">'+store.cam.filter(function(x){ return x.y===REAL_Y && x.m===REAL_M && x.day===REAL_D; }).length+'</div></div>'
+  + '<div><div class="k">Match rule</div><div class="v">90%+</div></div></div>'
+  + '<h2>Test a camera detection</h2>'
+  + '<div class="form"><label class="field grow">Face seen by camera<select id="simEmp">'+opts+'</select></label>'
+  + '<label class="field">Camera<select id="simCam">'+CAMS.map(function(c){ return '<option>'+c[0]+'</option>'; }).join('')+'</select></label>'
+  + '<label class="field">Time<input type="time" id="simTime" value="'+nowHM()+'"></label>'
+  + '<button class="btn" data-sim="1">Camera sees this face</button></div>'
+  + '<p class="msg" id="simMsg">This marks the person present for today ('+dayLabel(CAMDAY).replace(' (today)','')+') at the time shown, exactly as a real camera event will.</p>'
+  + '<h2>Camera log</h2>'
+  + '<div class="scroll"><table><thead><tr><th>Time</th><th>Employee</th><th>Camera</th><th class="num">Match</th><th>Result</th></tr></thead><tbody id="camBody"></tbody></table></div>'
+  + '<h2>Your cameras</h2>'
+  + '<div class="scroll"><table><thead><tr><th>Camera</th><th>Address (example)</th><th>Status</th><th>Use</th></tr></thead><tbody>'+camRows+'</tbody></table></div>'
+  + '<h2>How the real camera connects</h2>'
+  + '<div class="example"><p><b>1. Register faces.</b> Take 3 to 5 clear photos of each employee. The program stores a face fingerprint for each person.</p>'
+  + '<p><b>2. Connect the CCTV.</b> A small program on an office PC reads the camera video (RTSP address from your NVR or IP camera).</p>'
+  + '<p><b>3. Match.</b> When a face appears, it is compared with the registered fingerprints. A match above 90% counts.</p>'
+  + '<p><b>4. Send to this app.</b> The program sends the employee ID, camera name and time. The app marks present and applies the late rule from the Rules tab.</p>'
+  + '<p><b>5. Only the first entry counts.</b> Later sightings the same day are ignored.</p></div>';
+}
+function fillCam(){
+  var rows = store.cam.slice().reverse().map(function(x){
+    return '<tr><td>'+x.day+' '+MSHORT[x.m]+' · '+x.t+'</td><td>'+esc(x.name)+'<span class="sm">'+x.id+'</span></td><td>'+esc(x.cam)+'</td><td class="num">'+x.conf+'%</td><td><span class="pill '+(x.ok?'good':'none')+'">'+esc(x.res)+'</span></td></tr>';
+  }).join('');
+  if (!$('#camBody')) return;
+  $('#camBody').innerHTML = rows || '<tr><td colspan="5">No camera detections yet. Use the test box above.</td></tr>';
+}
+
+/* ---------- wiring ---------- */
+function refresh(){
+  if (state.tab==='att') fillAtt();
+  else if (state.tab==='sal') fillSal();
+  else if (state.tab==='emp') fillEmp();
+  else if (state.tab==='cam') fillCam();
+}
+function afterEmpEdit(){ if (state.tab==='emp') fillEmp(); else render(); }
+function renderHeader(){
+  $('#sub').textContent = MONTHS[MON] + ' ' + YEAR + ' · ' + emps.length + ' employees · Demo salaries and attendance (real data comes later)';
+  $('#mlabel').textContent = MONTHS[MON] + ' ' + YEAR;
+  $('#mnext').disabled = IS_CUR;
+  $('#mcur').hidden = IS_CUR;
+}
+function render(){
+  renderHeader();
+  document.querySelectorAll('.tab').forEach(function(b){ b.setAttribute('aria-selected', b.getAttribute('data-tab')===state.tab ? 'true' : 'false'); });
+  var views = {dash:dashView, team:teamView, att:attView, cam:camView, sal:salView, emp:empView, set:setView};
+  $('#view').innerHTML = views[state.tab]();
+  refresh();
+}
+function go(tab){ state.tab = tab; state.confirmReset = false; render(); try{ window.scrollTo(0,0); }catch(e){} }
+
+document.addEventListener('click', function(ev){
+  var t = ev.target.closest ? ev.target.closest('[data-tab],[data-goto],[data-add],[data-reset],[data-sim],[data-month],[data-team],[data-teamapply],[data-rm],[data-tadd],[data-newteam]') : null;
+  if (!t) return;
+  if (t.hasAttribute('data-month')){
+    var a = t.getAttribute('data-month'), y = YEAR, m = MON;
+    if (a==='prev'){ m--; if (m<0){ m=11; y--; } }
+    else if (a==='next'){ m++; if (m>11){ m=0; y++; } }
+    else { y = REAL_Y; m = REAL_M; }
+    if (y>REAL_Y || (y===REAL_Y && m>REAL_M)) return;
+    setMonth(y, m); state.confirmReset = false; state.salDept = state.salDept; return render();
+  }
+  if (t.hasAttribute('data-team')){ state.teamSel = t.getAttribute('data-team'); state.rmConfirm=''; return go('team'); }
+  if (t.hasAttribute('data-newteam')){
+    var tn = $('#newTeam').value.trim(), tm = $('#teamMsg');
+    if (!tn){ tm.className='msg err'; tm.textContent='Type a team name.'; return; }
+    if (deptNames.some(function(d){ return d.toLowerCase()===tn.toLowerCase(); })){ tm.className='msg err'; tm.textContent='That team already exists.'; return; }
+    store.depts.push(tn); save(); rebuildDepts(); state.teamSel = tn; return render();
+  }
+  if (t.hasAttribute('data-teamapply')){
+    var tot = Number($('#tsTotal').value), ty = $('#tsType').value, tv2 = Number($('#tsVal').value), lt = $('#tsLate').value, am = $('#applyMsg');
+    if (!(tot>=0) || !(tv2>=0) || (ty==='pct' && tv2>100) || (ty==='amt' && tv2>tot) || (lt!=='' && !(Number(lt)>=0 && Number(lt)<=100))){ am.className='msg err'; am.textContent='Check the numbers: bonus cannot be more than the total, and percents must be 0 to 100.'; return; }
+    var bo = ty==='pct' ? Math.round(tot*tv2/100) : tv2;
+    store.dept[state.teamSel] = {total:tot, type:ty, val:tv2, latePct: lt==='' ? null : Number(lt)};
+    emps.forEach(function(e){ if (e.dept===state.teamSel){ e.basic = tot-bo; e.bonus = bo; saveEmp(e); } });
+    save(); render();
+    var am2 = $('#applyMsg'); am2.className='msg'; am2.textContent='Saved. Everyone in '+state.teamSel+' now has basic '+rs(tot-bo)+' + bonus '+rs(bo)+'.';
+    return;
+  }
+  if (t.hasAttribute('data-rm')){
+    var rid = t.getAttribute('data-rm');
+    if (state.rmConfirm !== rid){ state.rmConfirm = rid; return render(); }
+    state.rmConfirm = '';
+    if (rid.charAt(0)==='N') store.added = store.added.filter(function(a){ return a.id!==rid; });
+    else if (store.removed.indexOf(rid)<0) store.removed.push(rid);
+    delete store.emp[rid]; save(); buildEmps(); return render();
+  }
+  if (t.hasAttribute('data-tadd')){
+    var nm2 = $('#tmName').value.trim(), mm = $('#tmMsg');
+    if (!nm2){ mm.className='msg err'; mm.textContent='Type a name.'; return; }
+    var d2 = store.dept[state.teamSel], tt = d2 ? d2.total : 100000, bb = d2 ? (d2.type==='pct' ? Math.round(tt*d2.val/100) : d2.val) : 20000;
+    store.added.push({id:newId(), name:nm2, alias:$('#tmAlias').value.trim(), role:$('#tmRole').value.trim(), wfh:false, dept:state.teamSel, basic:tt-bb, bonus:bb}); save(); buildEmps(); return render();
+  }
+  if (t.hasAttribute('data-tab')) return go(t.getAttribute('data-tab'));
+  if (t.hasAttribute('data-goto')){ state.salDept = t.getAttribute('data-dept'); state.salQ=''; return go('sal'); }
+  if (t.hasAttribute('data-reset')){
+    if (!state.confirmReset){ state.confirmReset = true; return render(); }
+    store = {settings:{}, att:{}, emp:{}, added:[], cam:[], dept:{}, removed:[], depts:[], seq:0}; save(); rebuildDepts(); settings = Object.assign({}, DEF); buildEmps(); state.confirmReset = false; return render();
+  }
+  if (t.hasAttribute('data-sim')){
+    var sid = $('#simEmp').value, scam = $('#simCam').value, stime = $('#simTime').value, smsg = $('#simMsg');
+    var se = emps.filter(function(e){ return e.id===sid; })[0];
+    if (!se || !stime){ smsg.className='msg err'; smsg.textContent='Pick an employee and a time.'; return; }
+    var conf = 92 + Math.floor(Math.random()*7), key = attKey(sid, CAMDAY), cur = getRec(sid, CAMDAY);
+    var already = cur && cur.s==='in' && cur.src==='camera';
+    if (already){ store.cam.push({y:REAL_Y,m:REAL_M,day:CAMDAY,t:stime,id:sid,name:se.name,cam:scam,conf:conf,ok:false,res:'Already marked, ignored'}); }
+    else { store.att[key] = {s:'in', t:stime, src:'camera'}; var late = toMin(stime) > startM(); store.cam.push({y:REAL_Y,m:REAL_M,day:CAMDAY,t:stime,id:sid,name:se.name,cam:scam,conf:conf,ok:true,res:late?'Marked late':'Marked present'}); }
+    if (store.cam.length > 40) store.cam = store.cam.slice(-40);
+    save(); render();
+    var m2 = $('#simMsg'); m2.className='msg'; m2.textContent = already ? se.name+' was already marked by camera today, so this sighting was ignored.' : se.name+' marked '+(toMin(stime) > startM() ? 'late' : 'present')+' at '+stime+'. See the Attendance and Salary tabs.';
+    return;
+  }
+  if (t.hasAttribute('data-add')){
+    var name = $('#newName').value.trim(), dept = $('#newDept').value, b = Number($('#newBasic').value), bo = Number($('#newBonus').value), msg = $('#addMsg');
+    if (!name){ msg.className='msg err'; msg.textContent='Enter a name.'; return; }
+    if (!(b>=0) || !(bo>=0)){ msg.className='msg err'; msg.textContent='Enter valid amounts for basic and bonus.'; return; }
+    var rec = {id:newId(), name:name, dept:dept, basic:b, bonus:bo};
+    store.added.push(rec); save(); buildEmps(); fillEmp();
+    msg.className='msg'; msg.textContent = name+' was added. Attendance is not marked yet; go to the Attendance tab to mark it.';
+    $('#newName').value='';
+  }
+});
+
+document.addEventListener('input', function(ev){
+  var f = ev.target.getAttribute && ev.target.getAttribute('data-f');
+  if (f==='attQ'||f==='salQ'||f==='empQ'){ state[f] = ev.target.value; refresh(); }
+});
+
+document.addEventListener('change', function(ev){
+  var t = ev.target, f = t.getAttribute('data-f'), act = t.getAttribute('data-act'), k = t.getAttribute('data-k');
+  if (f && f!=='attQ' && f!=='salQ' && f!=='empQ'){ state[f] = f==='attDay' ? Number(t.value) : t.value; return refresh(); }
+  if (act==='status' || act==='time'){
+    var id = t.getAttribute('data-id'), key = attKey(id, state.attDay), cur = getRec(id, state.attDay);
+    if (act==='status'){
+      if (t.value==='in') store.att[key] = {s:'in', t: (cur && cur.t) || '07:10'};
+      else store.att[key] = {s:t.value};
+    } else {
+      if (!t.value) return;
+      store.att[key] = {s:'in', t:t.value};
+    }
+    save(); return fillAtt();
+  }
+  if (act==='name' || act==='alias' || act==='role'){
+    var nid = t.getAttribute('data-id'), nv = t.value.trim();
+    var ne = emps.filter(function(e){ return e.id===nid; })[0];
+    if (!ne || (act==='name' && !nv)) return afterEmpEdit();
+    ne[act] = nv; saveEmp(ne); save(); return afterEmpEdit();
+  }
+  if (act==='basic' || act==='bonus'){
+    var eid = t.getAttribute('data-id'), v = Number(t.value);
+    var emp = emps.filter(function(e){ return e.id===eid; })[0];
+    if (!emp || !(v>=0)) return afterEmpEdit();
+    emp[act] = v; saveEmp(emp); save(); return afterEmpEdit();
+  }
+  if (k){
+    var val = t.type==='checkbox' ? t.checked : ((t.type==='time' || t.tagName==='SELECT') ? t.value : Number(t.value));
+    if (t.type!=='checkbox' && (val==='' || (typeof val==='number' && !(val>=0)))) return render();
+    if (k==='divisor' && val<1) val = 1;
+    if (k==='latePct' && val>100) val = 100;
+    settings[k] = val; store.settings = Object.assign({}, settings); save(); render();
+  }
+});
+
+setMonth(REAL_Y, REAL_M);
+render();
+/* new day or new month: update by itself while the page stays open */
+setInterval(function(){
+  var n = new Date();
+  if (n.getFullYear()===REAL_Y && n.getMonth()===REAL_M && n.getDate()===REAL_D) return;
+  var follow = IS_CUR;
+  REAL_Y = n.getFullYear(); REAL_M = n.getMonth(); REAL_D = n.getDate();
+  if (follow) setMonth(REAL_Y, REAL_M); else setMonth(YEAR, MON);
+  render();
+}, 60000);
+})();
+</script>
+</html>
