@@ -3,33 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}</style>
+<style>[hidden]{display:none!important}body{margin:0}img{max-width:100%}html{background:#000}</style>
 <title>Hazri Hisab</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
 <style>
 /* Layout: one column, underline tabs on top, summary band first, tables below. */
 :root{
-  --bg:#F4F6F2; --surface:#FFFFFF; --ink:#16231F; --muted:#5C6B65; --line:#DCE2DC; --soft:#EDF1EC;
-  --accent:#0B6B5A; --accent-ink:#FFFFFF;
-  --good:#1E7A4B; --good-bg:#DDF0E4; --warn:#9A6200; --warn-bg:#F8EACB;
-  --bad:#B3261E; --bad-bg:#F9DEDA; --info:#2D5BA3; --info-bg:#DEE8F7;
+  --bg:#000000; --surface:#0b0b0b; --ink:#e8f0ff; --muted:#8e9bb0; --line:#232830; --soft:#141414;
+  --accent:#3b82f6; --accent-ink:#FFFFFF;
+  --good:#4ade80; --good-bg:#10301d; --warn:#fbbf24; --warn-bg:#3a2d0a;
+  --bad:#f87171; --bad-bg:#3f1616; --info:#93c5fd; --info-bg:#14284a;
   --font:"Inter",system-ui,-apple-system,"Segoe UI",sans-serif;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#0E1512; --surface:#151E1A; --ink:#E6EEE9; --muted:#93A39B; --line:#263530; --soft:#1B2722;
-    --accent:#3FBF9F; --accent-ink:#06251C;
-    --good:#58C68A; --good-bg:#173A29; --warn:#E3B455; --warn-bg:#3A2D10;
-    --bad:#F0857D; --bad-bg:#3F1C19; --info:#8DB4EE; --info-bg:#1B2D4A;
-    color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#0E1512; --surface:#151E1A; --ink:#E6EEE9; --muted:#93A39B; --line:#263530; --soft:#1B2722;
-  --accent:#3FBF9F; --accent-ink:#06251C;
-  --good:#58C68A; --good-bg:#173A29; --warn:#E3B455; --warn-bg:#3A2D10;
-  --bad:#F0857D; --bad-bg:#3F1C19; --info:#8DB4EE; --info-bg:#1B2D4A;
   color-scheme:dark;
 }
 *{box-sizing:border-box}
