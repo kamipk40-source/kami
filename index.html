@@ -351,6 +351,7 @@ input,textarea,select{-webkit-user-select:text;-moz-user-select:text;user-select
       <div class="nav-item" data-view="guide"><span class="ic">📖</span>IT Guide</div>
       <div id="nav-settings" class="nav-item hidden" data-view="settings"><span class="ic">⚙️</span>Settings</div>
       <a id="nav-attendance" class="nav-link hidden" href="attendance.html"><span class="ic">🕘</span>Attendance &amp; Salary</a>
+      <a id="nav-hrface" class="nav-link hidden" href="hr-face.html"><span class="ic">🤖</span>Face Attendance (webcam)</a>
       <div class="side-user" onclick="doLogout()">
         <div id="side-username" style="color:var(--text);font-weight:500"></div>
         <div style="font-size:11px;margin-top:2px">Sign out →</div>
@@ -870,6 +871,7 @@ function doLogin(){
   $('side-username').textContent=me.name+' ('+(ROLES_LABEL[me.role]||me.role)+')';
   if(me.role==='admin'||me.role==='agent')$('nav-settings').classList.remove('hidden');
   $('nav-attendance').classList.toggle('hidden',me.role!=='admin');
+  $('nav-hrface').classList.toggle('hidden',me.role!=='admin');
   // hide restricted nav items
   if(me.role==='user'){
     ['employees','floormap','assets','specs','reports','audit','settings'].forEach(function(v){

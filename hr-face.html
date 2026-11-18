@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KK HR & Payroll — Face Attendance</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/face-api.js/0.22.2/face-api.min.js"></script>
+<style>
+:root{--bg:#040d1a;--surface:#0a1628;--surface2:#0f1f38;--border:rgba(100,160,255,.18);--accent:#2563eb;--green:#22c55e;--red:#ef4444;--yellow:#f59e0b;--text:#e8f0ff;--muted:rgba(200,220,255,.55);--white:#fff;--radius:10px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+#login-page{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-box{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px;width:100%;max-width:380px}
+.login-box h1{font-size:22px;font-weight:700;color:var(--white);text-align:center;margin-bottom:4px}
+.login-box p{font-size:13px;color:var(--muted);text-align:center;margin-bottom:20px}
+#wrap{display:flex;min-height:100vh}
+#side{width:220px;background:var(--surface);border-right:1px solid var(--border);position:fixed;top:0;left:0;height:100vh;display:flex;flex-direction:column;z-index:100;overflow-y:auto}
+#main{margin-left:220px;padding:24px;min-height:100vh}
+@media(max-width:768px){#side{transform:translateX(-220px);transition:.25s}#side.open{transform:none}#main{margin-left:0;padding:14px;padding-top:52px}#hbg{display:block!important}}
+#hbg{display:none;position:fixed;top:12px;left:12px;z-index:150;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 10px;cursor:pointer;font-size:18px;color:var(--text)}
+.side-logo{padding:16px;border-bottom:1px solid var(--border)}
+.side-logo h3{font-size:14px;font-weight:700;color:var(--white)}
+.side-logo p{font-size:11px;color:var(--muted);margin-top:2px}
+.nav-sec{padding:8px 16px 2px;font-size:10px;color:var(--muted);letter-spacing:.8px;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 16px;cursor:pointer;font-size:13px;color:var(--muted);border-left:3px solid transparent;transition:all .15s}
+.nav-item:hover{color:var(--text);background:var(--surface2)}
+.nav-item.active{color:var(--white);border-left-color:var(--accent);background:rgba(37,99,235,.15)}
+.nav-item .ic{font-size:16px;width:20px;text-align:center}
+.side-user{padding:12px 16px;border-top:1px solid rgba(239,68,68,.3);background:rgba(239,68,68,.07);cursor:pointer}
+.side-user:hover{background:rgba(239,68,68,.15)}
+.side-user-name{font-size:13px;font-weight:600;color:var(--white)}
+.side-user-role{font-size:11px;color:#f87171;margin-top:2px}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px}
+.topbar h1{font-size:20px;font-weight:700;color:var(--white)}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:12px;margin-bottom:24px}
+.kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;border-left:3px solid var(--kc,var(--accent))}
+.kpi-val{font-size:28px;font-weight:700;color:var(--white)}
+.kpi-lbl{font-size:11px;color:var(--muted);margin-top:4px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:16px}
+.card-title{font-size:14px;font-weight:600;color:var(--white);margin-bottom:12px}
+.tbl-wrap{overflow-x:auto;border-radius:var(--radius);border:1px solid var(--border)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--surface2);color:var(--muted);font-weight:500;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid rgba(100,160,255,.07);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(37,99,235,.06)}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:500;white-space:nowrap}
+.bg{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+.br{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.by{background:rgba(245,158,11,.15);color:#fbbf24;border:1px solid rgba(245,158,11,.3)}
+.bb{background:rgba(59,130,246,.15);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
+.bp{background:rgba(139,92,246,.15);color:#a78bfa;border:1px solid rgba(139,92,246,.3)}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:11px;color:var(--muted);font-weight:500;text-transform:uppercase;letter-spacing:.4px}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:13px;width:100%;font-family:inherit}
+input:focus,select:focus{outline:none;border-color:var(--accent)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:none;border-radius:6px;font-size:13px;font-weight:500;cursor:pointer;font-family:inherit;transition:all .15s}
+.btn-p{background:var(--accent);color:#fff}.btn-p:hover{background:#1d4ed8}
+.btn-g{background:transparent;color:var(--muted);border:1px solid var(--border)}.btn-g:hover{color:var(--text)}
+.btn-gr{background:rgba(34,197,94,.15);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.full{grid-column:1/-1}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,20,.75);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.hidden{display:none}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;width:100%;max-width:580px;max-height:90vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:600;color:var(--white);margin-bottom:16px;display:flex;justify-content:space-between}
+.mc{cursor:pointer;color:var(--muted);font-size:20px;padding:2px 6px;border-radius:4px}.mc:hover{color:var(--text)}
+.msg-ok{background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);color:#4ade80;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px}
+.msg-er{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);color:#f87171;padding:10px 14px;border-radius:8px;font-size:13px;margin-bottom:12px}
+.hidden{display:none!important}
+/* ── FACE CAM ── */
+.face-cam-wrap{position:relative;border-radius:12px;overflow:hidden;background:#000;max-width:480px;margin:0 auto}
+.face-cam-wrap video{width:100%;display:block}
+.face-cam-wrap canvas{position:absolute;top:0;left:0;width:100%;height:100%}
+.att-feed{max-height:280px;overflow-y:auto}
+.att-event{display:flex;align-items:center;gap:10px;padding:8px 10px;border-bottom:1px solid rgba(100,160,255,.07);animation:slideIn .3s ease}
+@keyframes slideIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.att-event-ic{font-size:22px;flex-shrink:0}
+.att-event-name{font-size:14px;font-weight:600;color:var(--white)}
+.att-event-meta{font-size:11px;color:var(--muted)}
+/* ── Reg grid ── */
+.reg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:10px}
+.reg-card{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px;text-align:center;font-size:11px}
+.reg-card img{width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--green);display:block;margin:0 auto 4px}
+.reg-card.no-face img{border-color:var(--red)}
+.reg-card b{color:var(--white);display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.reg-card span{color:var(--muted)}
+/* salary slip */
+.slip{background:#fff;color:#111;border-radius:10px;padding:24px;max-width:580px;margin:0 auto;font-family:Arial,sans-serif}
+.slip h2{font-size:18px;color:#1E3A5F;border-bottom:2px solid #1E3A5F;padding-bottom:8px;margin-bottom:12px}
+.slip-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee;font-size:13px}
+.slip-total{display:flex;justify-content:space-between;padding:8px 0;font-size:15px;font-weight:700;color:#1E3A5F;border-top:2px solid #1E3A5F;margin-top:4px}
+.sep{border:none;border-top:1px solid var(--border);margin:16px 0}
+/* loading overlay */
+#model-loading{position:fixed;inset:0;background:rgba(4,13,26,.95);z-index:300;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.spinner{width:48px;height:48px;border:4px solid rgba(37,99,235,.3);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+/* att calendar */
+.att-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:10px}
+.att-day{border-radius:6px;padding:5px 2px;text-align:center;font-size:11px}
+.att-day-h{font-size:10px;color:var(--muted);font-weight:600;text-align:center;padding:3px}
+.ap{background:rgba(34,197,94,.2);color:#4ade80;border:1px solid rgba(34,197,94,.3)}
+.aa{background:rgba(239,68,68,.2);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.aal{background:rgba(245,158,11,.18);color:#fbbf24;border:1px solid rgba(245,158,11,.3)}
+.asl{background:rgba(139,92,246,.18);color:#a78bfa;border:1px solid rgba(139,92,246,.3)}
+.aw{background:rgba(255,255,255,.04);color:rgba(200,220,255,.3);border:1px solid transparent}
+</style>
+</head>
+<body>
+
+<!-- Model loading overlay -->
+<div id="model-loading">
+  <div style="font-size:40px">🧠</div>
+  <div class="spinner"></div>
+  <div style="font-size:16px;font-weight:600;color:var(--white)">Loading Face Recognition Models...</div>
+  <div style="font-size:13px;color:var(--muted)" id="model-status">Downloading AI models (~5 MB)...</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:4px">Only needed once — please wait</div>
+</div>
+
+<button id="hbg" onclick="document.getElementById('side').classList.toggle('open')">☰</button>
+
+<!-- LOGIN -->
+<div id="login-page" class="hidden">
+  <div class="login-box">
+    <div style="text-align:center;font-size:40px;margin-bottom:8px">👔</div>
+    <h1>KK HR & Payroll</h1>
+    <p>Face Recognition Attendance System</p>
+    <div class="field" style="margin-bottom:10px"><label>Username</label><input id="lu" type="text" placeholder="e.g. hr.admin" autocomplete="username"></div>
+    <div class="field" style="margin-bottom:16px"><label>Password</label><input id="lp" type="password" placeholder="Password" autocomplete="current-password"></div>
+    <button class="btn btn-p" style="width:100%;justify-content:center" onclick="doLogin()">Sign In</button>
+    <div id="lerr" class="hidden" style="margin-top:10px"></div>
+    <div style="margin-top:14px;padding:12px;background:var(--surface2);border-radius:8px;font-size:11px;color:var(--muted)">
+      <b style="color:var(--text)">Demo accounts (password: 1234)</b><br>
+      hr.admin → Full HR Admin &nbsp;|&nbsp; kamran → Owner<br>
+      farhan.khan → Employee
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-shell" class="hidden">
+  <nav id="side">
+    <div class="side-logo">
+      <div style="font-size:28px">👔</div>
+      <h3>KK HR & Payroll</h3>
+      <p id="side-role"></p>
+    </div>
+    <div class="nav-sec">Main</div>
+    <div class="nav-item active" data-v="dashboard"><span class="ic">📊</span>Dashboard</div>
+    <div class="nav-sec">Attendance</div>
+    <div class="nav-item admin-only" data-v="face-attendance"><span class="ic">🤖</span>Auto Face Attendance</div>
+    <div class="nav-item admin-only" data-v="register-faces"><span class="ic">📸</span>Register Faces</div>
+    <div class="nav-item" data-v="attendance"><span class="ic">📅</span>Attendance Log</div>
+    <div class="nav-sec">Payroll</div>
+    <div class="nav-item" data-v="payroll"><span class="ic">💰</span>Monthly Payroll</div>
+    <div class="nav-item" data-v="slips"><span class="ic">🧾</span>Salary Slips</div>
+    <div class="nav-sec admin-only">HR Management</div>
+    <div class="nav-item admin-only" data-v="employees"><span class="ic">👥</span>Employees</div>
+    <div class="nav-item admin-only" data-v="reports"><span class="ic">📈</span>Reports</div>
+    <div class="side-user" onclick="doLogout()">
+      <div class="side-user-name" id="side-uname"></div>
+      <div class="side-user-role">🔴 Sign out</div>
+    </div>
+  </nav>
+  <main id="main"><div id="view-area"></div></main>
+</div>
+
+<div class="modal-overlay hidden" id="modal-overlay">
+  <div class="modal" id="modal-box">
+    <div class="modal-title"><span id="modal-ttl"></span><span class="mc" onclick="closeModal()">✕</span></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// ═══ CONSTANTS ═══
+var DEPTS=['IT','HR','Management','Finance','Operations','Diary Room'];
+var DEPT_COLOR={IT:'#2563eb',HR:'#8b5cf6',Management:'#f59e0b',Finance:'#22c55e',Operations:'#06b6d4','Diary Room':'#ec4899'};
+var WORK_DAYS=26;
+var ATT_STATUS={P:'Present',A:'Absent',AL:'Annual Leave',SL:'Sick Leave',H:'Half Day'};
+
+// ═══ STORAGE ═══
+function save(k,v){try{localStorage.setItem('hr_'+k,JSON.stringify(v))}catch(e){console.error('save error',e)}}
+function load(k,d){try{var v=localStorage.getItem('hr_'+k);return v?JSON.parse(v):d}catch(e){return d}}
+function esc(s){return String(s||'').replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function fmt(ts){if(!ts)return '-';var d=new Date(ts);return d.getDate()+' '+['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]+' '+d.getFullYear()+', '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}
+function today(){return new Date().toISOString().slice(0,10)}
+function hashPw(p){var h=0;for(var i=0;i<p.length;i++){h=((h<<5)-h)+p.charCodeAt(i);h|=0}return h.toString(36)}
+function $(id){return document.getElementById(id)}
+function val(id){var e=$(id);return e?e.value.trim():''}
+function comma(n){return Number(n||0).toLocaleString()}
+function pct(a,b){return b>0?Math.round(a/b*100):0}
+
+// ═══ SEED DATA ═══
+function seedEmps(){
+  var e=load('emps',null);if(e)return e;
+  var rows=[
+    ['Farhan Khan','IT','Agent',70000,30000,10000],['Bilal Khalid','IT','Agent',65000,35000,10000],
+    ['Ghusharib Anjum','IT','Agent',60000,40000,10000],['Waseh Raza','IT','Agent',75000,25000,10000],
+    ['Arslan Munir','IT','Senior Agent',80000,20000,15000],['Ahmed Nawaz','IT','Team Lead',90000,10000,20000],
+    ['Kamran','Management','Owner',120000,80000,0],['Rehan Akmal','HR','HR Manager',85000,15000,15000],
+    ['Muhammad Saad','HR','HR Officer',60000,40000,10000],['Ali Hussain','Finance','Accountant',70000,30000,10000],
+    ['Hamza Malik','Finance','Finance Officer',65000,35000,10000],['Muzamil Shah','Operations','Supervisor',75000,25000,10000],
+    ['Moin Shah','Operations','Coordinator',60000,40000,10000],['Haider Ali','Diary Room','Officer',55000,45000,5000],
+    ['Jibran Ali','IT','Agent',65000,35000,10000],['Uzair Khan','IT','Agent',60000,40000,10000],
+    ['Abdul Ahad','IT','Agent',65000,35000,10000],['Rohit Liaqat','IT','Agent',60000,40000,10000],
+    ['Ahsam Ul Haq','IT','Agent',70000,30000,10000],['Soban Khan Niazi','IT','Agent',65000,35000,10000],
+  ];
+  var emps={};
+  rows.forEach(function(r,i){
+    var un=r[0].toLowerCase().replace(/[^a-z0-9]+/g,'.').replace(/\.+/g,'.').replace(/^\.|\.$/g,'');
+    emps[un]={id:'EMP'+String(i+101).padStart(3,'0'),name:r[0],dept:r[1],role:r[2],
+      basic:r[3],bonus:r[4],punctualityBonus:r[5],totalSalary:r[3]+r[4],
+      pw:hashPw('1234'),status:'active',joinDate:'2024-01-01',phone:''};
+  });
+  save('emps',emps);return emps;
+}
+function seedUsers(){
+  var u=load('users',null);if(u)return u;
+  var users={'hr.admin':{name:'HR Admin',role:'admin',dept:'HR',pw:hashPw('1234')},
+    'kamran':{name:'Kamran',role:'owner',dept:'Management',pw:hashPw('1234')}};
+  var emps=seedEmps();
+  Object.keys(emps).forEach(function(k){users[k]={name:emps[k].name,role:'employee',dept:emps[k].dept,empId:k,pw:hashPw('1234')}});
+  save('users',users);return users;
+}
+var DB={
+  get emps(){return load('emps',{})},
+  get users(){return load('users',{})},
+  get att(){return load('att',{})},
+  get faces(){return load('faces',{})},
+  get payroll(){return load('payroll',{})}
+};
+function saveEmps(d){save('emps',d)}
+function saveAtt(d){save('att',d)}
+function saveFaces(d){save('faces',d)}
+function savePayroll(d){save('payroll',d)}
+
+// ═══ FACE API MODELS ═══
+var modelsLoaded=false;
+var MODEL_URL='https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights';
+
+async function loadModels(){
+  try{
+    $('model-status').textContent='Loading Tiny Face Detector...';
+    await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+    $('model-status').textContent='Loading Face Landmarks...';
+    await faceapi.nets.faceLandmark68TinyNet.loadFromUri(MODEL_URL);
+    $('model-status').textContent='Loading Face Recognition...';
+    await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
+    modelsLoaded=true;
+    $('model-loading').style.display='none';
+    $('login-page').classList.remove('hidden');
+    console.log('Face models loaded');
+  }catch(err){
+    console.error('Model load error:',err);
+    $('model-status').textContent='Could not load models from CDN. Offline mode — manual attendance only.';
+    setTimeout(function(){
+      $('model-loading').style.display='none';
+      $('login-page').classList.remove('hidden');
+    },2500);
+  }
+}
+loadModels();
+
+// ═══ AUTH ═══
+var me=null,uname='';
+function doLogin(){
+  var u=val('lu').toLowerCase().trim(),p=$('lp').value;
+  var users=DB.users;
+  if(!users[u]){showMsg('lerr','Username not found','er');return}
+  if(users[u].pw!==hashPw(p)){showMsg('lerr','Wrong password','er');return}
+  me=users[u];uname=u;
+  $('login-page').classList.add('hidden');
+  $('app-shell').classList.remove('hidden');
+  $('side-uname').textContent=me.name;
+  $('side-role').textContent=me.role.toUpperCase();
+  if(me.role==='employee'){
+    document.querySelectorAll('.admin-only').forEach(function(el){el.style.display='none'});
+  }
+  setView('dashboard');
+}
+function doLogout(){
+  stopCameras();
+  me=null;uname='';
+  $('app-shell').classList.add('hidden');
+  $('login-page').classList.remove('hidden');
+  $('lu').value='';$('lp').value='';
+  document.querySelectorAll('.admin-only').forEach(function(el){el.style.display=''});
+}
+function showMsg(id,msg,type){
+  var e=$(id);if(!e)return;
+  e.innerHTML=msg;e.className='msg-'+(type||'ok');e.classList.remove('hidden');
+  if(type==='ok')setTimeout(function(){e.classList.add('hidden')},3000);
+}
+
+// ═══ NAV ═══
+var view='dashboard';
+function setView(v){
+  stopCameras();
+  view=v;
+  document.querySelectorAll('.nav-item').forEach(function(el){el.classList.toggle('active',el.dataset.v===v)});
+  var views={dashboard:dashV,'face-attendance':faceAttV,'register-faces':registerFacesV,
+    attendance:attV,payroll:payrollV,slips:slipsV,employees:empsV,reports:reportsV};
+  if(views[v])$('view-area').innerHTML=views[v]();
+  $('side').classList.remove('open');
+}
+document.addEventListener('DOMContentLoaded',function(){
+  document.querySelectorAll('.nav-item').forEach(function(el){
+    if(el.dataset.v)el.addEventListener('click',function(){setView(el.dataset.v)});
+  });
+  seedEmps();seedUsers();
+});
+function openModal(title,body){$('modal-ttl').textContent=title;$('modal-body').innerHTML=body;$('modal-overlay').classList.remove('hidden')}
+function closeModal(){$('modal-overlay').classList.add('hidden');$('modal-body').innerHTML=''}
+
+// ═══ CAMERA MANAGEMENT ═══
+var activeCamStream=null,faceInterval=null;
+function stopCameras(){
+  if(faceInterval){clearInterval(faceInterval);faceInterval=null}
+  if(activeCamStream){activeCamStream.getTracks().forEach(function(t){t.stop()});activeCamStream=null}
+}
+
+// ═══ DASHBOARD ═══
+function dashV(){
+  var emps=DB.emps,att=DB.att,faces=DB.faces;
+  var empArr=Object.keys(emps);
+  var todayAtt=att[today()]||{};
+  var presentToday=Object.keys(todayAtt).filter(function(k){return todayAtt[k]&&todayAtt[k].status==='P'}).length;
+  var facesReg=Object.keys(faces).length;
+  var totalPayroll=empArr.reduce(function(s,k){return s+(emps[k].totalSalary||0)},0);
+
+  var h='<div class="topbar"><h1>📊 Dashboard</h1><div style="font-size:13px;color:var(--muted)">'+new Date().toDateString()+'</div></div>';
+  h+='<div class="kpi-grid">';
+  function kpi(ic,v,l,c){return '<div class="kpi" style="--kc:'+c+'"><div style="float:right;font-size:22px;opacity:.35">'+ic+'</div><div class="kpi-val">'+v+'</div><div class="kpi-lbl">'+l+'</div></div>'}
+  h+=kpi('👥',empArr.length,'Total Employees','#2563eb');
+  h+=kpi('✅',presentToday,'Present Today','#22c55e');
+  h+=kpi('❌',empArr.length-presentToday,'Absent Today','#ef4444');
+  h+=kpi('🤖',facesReg+'/'+empArr.length,'Faces Registered','#8b5cf6');
+  h+=kpi('📊',pct(presentToday,empArr.length)+'%','Attendance Rate','#f59e0b');
+  h+=kpi('💰','PKR '+comma(totalPayroll),'Monthly Payroll','#06b6d4');
+  h+='</div>';
+
+  if(facesReg<empArr.length&&(me&&me.role!=='employee')){
+    h+='<div style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px">';
+    h+='<span style="font-size:24px">⚠️</span><div><b style="color:#fbbf24">'+( empArr.length-facesReg)+' employees have no face registered</b><br>';
+    h+='<span style="font-size:12px;color:var(--muted)">Go to Register Faces to set up face recognition for all employees.</span></div>';
+    h+='<button class="btn btn-p" style="margin-left:auto;white-space:nowrap" onclick="setView(\'register-faces\')">📸 Register Now</button></div>';
+  }
+
+  var byDept={};
+  empArr.forEach(function(k){var d=emps[k].dept;byDept[d]=(byDept[d]||0)+1});
+  h+='<div class="card"><div class="card-title">🏢 Departments</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px">';
+  Object.keys(byDept).forEach(function(dept){
+    var col=DEPT_COLOR[dept]||'#2563eb';
+    var dAtt=Object.keys(todayAtt).filter(function(k){return emps[k]&&emps[k].dept===dept&&todayAtt[k]&&todayAtt[k].status==='P'}).length;
+    h+='<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;border-left:3px solid '+col+'">';
+    h+='<div style="font-size:13px;font-weight:600;color:var(--white)">'+dept+'</div>';
+    h+='<div style="font-size:12px;color:var(--muted)">Staff: '+byDept[dept]+' &nbsp;|&nbsp; Present: '+dAtt+'</div></div>';
+  });
+  h+='</div></div>';
+
+  h+='<div class="card"><div class="card-title" style="display:flex;justify-content:space-between">Today\'s Attendance<button class="btn btn-p" style="font-size:12px;padding:4px 10px" onclick="setView(\'face-attendance\')">🤖 Auto Face</button></div>';
+  if(!Object.keys(todayAtt).length){
+    h+='<p style="color:var(--muted);font-size:13px">No attendance marked yet.</p>';
+  } else {
+    h+='<div class="tbl-wrap"><table><thead><tr><th>Employee</th><th>Dept</th><th>Status</th><th>Time</th></tr></thead><tbody>';
+    Object.keys(todayAtt).slice(0,8).forEach(function(k){
+      var a=todayAtt[k],emp=emps[k];if(!emp)return;
+      var sc={P:'bg',A:'br',AL:'by',SL:'bp',H:'by'}[a.status]||'bb';
+      h+='<tr><td><b>'+esc(emp.name)+'</b></td><td>'+esc(emp.dept)+'</td><td><span class="badge '+sc+'">'+ATT_STATUS[a.status]+'</span></td><td style="font-size:11px">'+fmt(a.ts)+'</td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  h+='</div>';
+  return h;
+}
+
+// ═══ REGISTER FACES ═══
+function registerFacesV(){
+  var emps=DB.emps,faces=DB.faces;
+  var h='<div class="topbar"><h1>📸 Register Employee Faces</h1></div>';
+  h+='<div style="max-width:900px">';
+  h+='<div class="card">';
+  h+='<p style="font-size:13px;color:var(--muted);margin-bottom:12px">Register each employee\'s face once. The AI will then automatically recognize them at the attendance camera.</p>';
+  h+='<div class="form-grid">';
+  h+='<div class="field full"><label>Select Employee to Register</label><select id="reg-emp"><option value="">— Select employee —</option>';
+  Object.keys(emps).sort(function(a,b){return emps[a].name.localeCompare(emps[b].name)}).forEach(function(k){
+    var hasFace=!!faces[k];
+    h+='<option value="'+esc(k)+'">'+esc(emps[k].name)+' ('+esc(emps[k].dept)+')'+(hasFace?' ✅':'')+'</option>';
+  });
+  h+='</select></div></div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px">';
+  h+='<div><div class="face-cam-wrap"><video id="reg-video" autoplay playsinline muted></video><canvas id="reg-canvas"></canvas></div>';
+  h+='<div class="btn-row"><button class="btn btn-p" onclick="startRegCam()">▶ Start Camera</button>';
+  h+='<button class="btn btn-gr" id="reg-capture-btn" onclick="captureFace()" style="display:none">📸 Capture Face</button></div>';
+  h+='<div id="reg-msg" class="hidden"></div></div>';
+  h+='<div><div id="reg-preview" style="text-align:center;color:var(--muted);padding:40px 0;background:var(--surface2);border-radius:10px;border:1px solid var(--border)">Face preview will appear here after capture</div>';
+  h+='<div id="reg-info" style="margin-top:8px;font-size:12px;color:var(--muted)"></div>';
+  h+='<button class="btn btn-p" id="reg-save-btn" onclick="saveFaceReg()" style="display:none;margin-top:10px;width:100%;justify-content:center">💾 Save Face Registration</button></div>';
+  h+='</div></div>';
+  h+='<div class="card"><div class="card-title">Registered Faces ('+Object.keys(faces).length+'/'+Object.keys(emps).length+')</div>';
+  h+='<div class="reg-grid">';
+  Object.keys(emps).sort(function(a,b){return emps[a].name.localeCompare(emps[b].name)}).forEach(function(k){
+    var emp=emps[k],f=faces[k];
+    h+='<div class="reg-card'+(f?'':' no-face')+'">';
+    if(f&&f.photo){h+='<img src="'+f.photo+'" alt="'+esc(emp.name)+'">';
+    }else{h+='<div style="width:56px;height:56px;border-radius:50%;background:var(--surface3);border:2px dashed rgba(239,68,68,.5);margin:0 auto 4px;display:flex;align-items:center;justify-content:center;font-size:20px">❓</div>'}
+    h+='<b>'+esc(emp.name.split(' ')[0])+'</b><span>'+(f?'✅ Registered':'No face')+'</span></div>';
+  });
+  h+='</div></div></div>';
+  return h;
+}
+
+var regCaptured=null;
+async function startRegCam(){
+  var v=$('reg-video');if(!v)return;
+  try{
+    activeCamStream=await navigator.mediaDevices.getUserMedia({video:{width:480,height:360,facingMode:'user'}});
+    v.srcObject=activeCamStream;
+    $('reg-capture-btn').style.display='';
+    showMsg('reg-msg','Camera started — position face in frame then click Capture','ok');
+  }catch(e){showMsg('reg-msg','Camera error: '+e.message,'er')}
+}
+
+async function captureFace(){
+  var v=$('reg-video'),c=$('reg-canvas');if(!v||!c)return;
+  if(!modelsLoaded){showMsg('reg-msg','Face models not loaded yet. Please wait.','er');return}
+  c.width=v.videoWidth||480;c.height=v.videoHeight||360;
+  var ctx=c.getContext('2d');ctx.drawImage(v,0,0,c.width,c.height);
+  showMsg('reg-msg','Analyzing face...','ok');
+  try{
+    var detection=await faceapi.detectSingleFace(c,new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks(true).withFaceDescriptor();
+    if(!detection){showMsg('reg-msg','No face detected. Please look at the camera clearly.','er');return}
+    regCaptured={descriptor:Array.from(detection.descriptor),photo:c.toDataURL('image/jpeg',0.6)};
+    var prev=$('reg-preview');
+    prev.innerHTML='<img src="'+regCaptured.photo+'" style="max-width:100%;border-radius:8px;border:2px solid var(--green)">';
+    $('reg-info').textContent='✅ Face detected! Click Save to register.';
+    $('reg-save-btn').style.display='flex';
+    showMsg('reg-msg','Face captured successfully!','ok');
+    if(activeCamStream){activeCamStream.getTracks().forEach(function(t){t.stop()});activeCamStream=null}
+    $('reg-capture-btn').style.display='none';
+  }catch(err){showMsg('reg-msg','Error: '+err.message,'er')}
+}
+
+function saveFaceReg(){
+  var empKey=val('reg-emp');
+  if(!empKey){showMsg('reg-msg','Please select an employee first.','er');return}
+  if(!regCaptured){showMsg('reg-msg','Please capture a face first.','er');return}
+  var faces=DB.faces;
+  faces[empKey]=regCaptured;
+  saveFaces(faces);
+  regCaptured=null;
+  $('reg-save-btn').style.display='none';
+  showMsg('reg-msg','✅ Face registered for '+DB.emps[empKey].name+'!','ok');
+  $('view-area').innerHTML=registerFacesV();
+}
+
+// ═══ AUTO FACE ATTENDANCE ═══
+var faceMatcher=null,attEvents=[];
+
+function faceAttV(){
+  var h='<div class="topbar"><h1>🤖 Auto Face Attendance</h1></div>';
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:900px">';
+  h+='<div class="card"><div class="card-title">📷 Live Camera</div>';
+  h+='<div class="face-cam-wrap"><video id="face-video" autoplay playsinline muted></video><canvas id="face-overlay"></canvas></div>';
+  h+='<div class="btn-row"><button class="btn btn-p" id="face-start-btn" onclick="startFaceAtt()">▶ Start Auto Attendance</button>';
+  h+='<button class="btn btn-gr" id="face-stop-btn" onclick="stopCameras();showMsg(\'face-cam-msg\',\'Camera stopped\',\'ok\')" style="display:none">⏹ Stop</button></div>';
+  h+='<div id="face-cam-msg" class="hidden"></div>';
+  h+='<div style="font-size:12px;color:var(--muted);margin-top:8px">Camera scans every 2 seconds. Walk in front of camera to mark attendance automatically.</div>';
+  h+='</div>';
+  h+='<div class="card"><div class="card-title" style="display:flex;justify-content:space-between">✅ Attendance Events <span id="att-count" style="font-size:12px;color:var(--muted)">Today: '+(Object.keys(DB.att[today()]||{}).length)+'</span></div>';
+  h+='<div class="att-feed" id="att-feed">';
+  var todayAtt=DB.att[today()]||{};
+  if(!Object.keys(todayAtt).length){
+    h+='<p style="color:var(--muted);font-size:13px;padding:20px;text-align:center">Waiting for employees...<br><span style="font-size:11px">Start the camera and walk in front of it</span></p>';
+  } else {
+    Object.keys(todayAtt).reverse().forEach(function(k){
+      var a=todayAtt[k],emp=DB.emps[k];if(!emp)return;
+      h+=attEventHTML(emp.name,emp.dept,a.ts,a.status);
+    });
+  }
+  h+='</div>';
+
+  // Manual override
+  h+='<hr style="border:none;border-top:1px solid var(--border);margin:12px 0">';
+  h+='<div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">Manual Override</div>';
+  h+='<div style="display:flex;gap:8px"><select id="man-emp" style="flex:1;font-size:12px"><option value="">Select employee...</option>';
+  Object.keys(DB.emps).sort(function(a,b){return DB.emps[a].name.localeCompare(DB.emps[b].name)}).forEach(function(k){
+    h+='<option value="'+esc(k)+'">'+esc(DB.emps[k].name)+'</option>';
+  });
+  h+='</select><select id="man-status" style="width:100px;font-size:12px"><option value="P">Present</option><option value="AL">Ann. Leave</option><option value="SL">Sick Leave</option><option value="A">Absent</option></select>';
+  h+='<button class="btn btn-p" style="font-size:12px;padding:6px 10px" onclick="manualMark()">✓</button></div>';
+  h+='</div>';
+  return h;
+}
+
+function attEventHTML(name,dept,ts,status){
+  var col=DEPT_COLOR[dept]||'#2563eb';
+  var sc={P:'bg',A:'br',AL:'by',SL:'bp',H:'by'}[status]||'bb';
+  return '<div class="att-event"><div class="att-event-ic">✅</div><div style="flex:1"><div class="att-event-name">'+esc(name)+'</div><div class="att-event-meta"><span style="color:'+col+'">'+esc(dept)+'</span> &nbsp; <span class="badge '+sc+'">'+ATT_STATUS[status]+'</span> &nbsp; '+fmt(ts)+'</div></div></div>';
+}
+
+async function startFaceAtt(){
+  if(!modelsLoaded){showMsg('face-cam-msg','Face models not loaded. Check internet connection.','er');return}
+  var faces=DB.faces;
+  if(!Object.keys(faces).length){showMsg('face-cam-msg','No faces registered yet! Please register employee faces first.','er');return}
+
+  // Build face matcher
+  var labeled=[];
+  Object.keys(faces).forEach(function(k){
+    var emp=DB.emps[k];
+    if(!emp||!faces[k].descriptor)return;
+    var desc=new Float32Array(faces[k].descriptor);
+    labeled.push(new faceapi.LabeledFaceDescriptors(k,[desc]));
+  });
+  if(!labeled.length){showMsg('face-cam-msg','No valid face data. Please re-register faces.','er');return}
+  faceMatcher=new faceapi.FaceMatcher(labeled,0.55);
+
+  var v=$('face-video');if(!v)return;
+  try{
+    activeCamStream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});
+    v.srcObject=activeCamStream;
+    await new Promise(function(r){v.onloadedmetadata=r});
+    var ov=$('face-overlay');
+    ov.width=v.videoWidth;ov.height=v.videoHeight;
+    $('face-start-btn').style.display='none';
+    $('face-stop-btn').style.display='';
+    showMsg('face-cam-msg','✅ Auto attendance active — walk in front of camera!','ok');
+
+    faceInterval=setInterval(async function(){
+      if(!activeCamStream||!faceMatcher)return;
+      try{
+        var detections=await faceapi.detectAllFaces(v,new faceapi.TinyFaceDetectorOptions({inputSize:320}))
+          .withFaceLandmarks(true).withFaceDescriptors();
+        var ctx=ov.getContext('2d');
+        ctx.clearRect(0,0,ov.width,ov.height);
+        detections.forEach(function(det){
+          var result=faceMatcher.findBestMatch(det.descriptor);
+          var box=det.detection.box;
+          var empKey=result.label;
+          var isKnown=(empKey!=='unknown');
+          var color=isKnown?'#22c55e':'#ef4444';
+          var label=isKnown?(DB.emps[empKey]?DB.emps[empKey].name:'Unknown'):'Unknown';
+          // Draw box
+          ctx.strokeStyle=color;ctx.lineWidth=3;
+          ctx.strokeRect(box.x,box.y,box.width,box.height);
+          ctx.fillStyle=color;
+          ctx.fillRect(box.x,box.y-26,box.width,26);
+          ctx.fillStyle='#fff';ctx.font='14px Arial';
+          ctx.fillText(label,box.x+4,box.y-8);
+          // Mark attendance if known
+          if(isKnown) autoMarkAtt(empKey);
+        });
+      }catch(e){console.log('Detection error:',e)}
+    },2000);
+  }catch(e){showMsg('face-cam-msg','Camera error: '+e.message,'er')}
+}
+
+var recentMarked={};
+function autoMarkAtt(empKey){
+  var now=Date.now();
+  if(recentMarked[empKey]&&(now-recentMarked[empKey])<30000)return; // 30s cooldown
+  var att=DB.att;
+  if(!att[today()])att[today()]={};
+  if(att[today()][empKey])return; // Already marked today
+  att[today()][empKey]={status:'P',ts:Date.now(),method:'face-recognition',checkIn:Date.now()};
+  saveAtt(att);
+  recentMarked[empKey]=now;
+  var emp=DB.emps[empKey];
+  if(!emp)return;
+  // Update feed
+  var feed=$('att-feed');
+  if(feed){
+    var noMsg=feed.querySelector('p');if(noMsg)noMsg.remove();
+    var el=document.createElement('div');
+    el.innerHTML=attEventHTML(emp.name,emp.dept,Date.now(),'P');
+    feed.insertBefore(el.firstChild,feed.firstChild);
+  }
+  var cnt=$('att-count');
+  if(cnt)cnt.textContent='Today: '+Object.keys(DB.att[today()]||{}).length;
+}
+
+function manualMark(){
+  var empKey=val('man-emp'),status=val('man-status');
+  if(!empKey)return;
+  var att=DB.att;
+  if(!att[today()])att[today()]={};
+  att[today()][empKey]={status:status,ts:Date.now(),method:'manual',checkIn:status==='P'?Date.now():null};
+  saveAtt(att);
+  var emp=DB.emps[empKey];if(!emp)return;
+  var feed=$('att-feed');
+  if(feed){var el=document.createElement('div');el.innerHTML=attEventHTML(emp.name,emp.dept,Date.now(),status);feed.insertBefore(el.firstChild,feed.firstChild)}
+  var cnt=$('att-count');if(cnt)cnt.textContent='Today: '+Object.keys(DB.att[today()]||{}).length;
+  $('man-emp').value='';
+}
+
+// ═══ ATTENDANCE LOG ═══
+var attMonth=today().slice(0,7),attEmpF='All';
+function attV(){
+  var emps=DB.emps,att=DB.att;
+  var h='<div class="topbar"><h1>📅 Attendance Log</h1></div>';
+  h+='<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">';
+  h+='<div class="field"><label>Month</label><input type="month" id="att-m" value="'+attMonth+'" onchange="attMonth=this.value;document.getElementById(\'view-area\').innerHTML=attV()"></div>';
+  h+='<div class="field"><label>Employee</label><select id="att-ef" onchange="attEmpF=this.value;document.getElementById(\'view-area\').innerHTML=attV()"><option value="All">All Employees</option>';
+  Object.keys(emps).sort(function(a,b){return emps[a].name.localeCompare(emps[b].name)}).forEach(function(k){
+    h+='<option value="'+esc(k)+'"'+(attEmpF===k?' selected':'')+'>'+esc(emps[k].name)+'</option>';
+  });
+  h+='</select></div></div>';
+
+  if(attEmpF!=='All'){
+    var emp=emps[attEmpF];
+    var stats=calcAttStats(attEmpF,attMonth,att);
+    var pv=pct(stats.P+stats.H*0.5,WORK_DAYS);
+    h+='<div class="card"><div class="card-title">'+esc(emp.name)+' — '+attMonth+'</div>';
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">';
+    h+='<span class="badge bg">Present: '+stats.P+'</span><span class="badge br">Absent: '+stats.A+'</span>';
+    h+='<span class="badge by">Annual Leave: '+stats.AL+'</span><span class="badge bp">Sick Leave: '+stats.SL+'</span>';
+    h+='<span class="badge '+(pv>=90?'bg':pv>=75?'by':'br')+'">'+pv+'% Attendance</span>';
+    h+='</div>';
+    // Calendar
+    var d=new Date(attMonth+'-01');
+    h+='<div class="att-cal">';
+    ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(x){h+='<div class="att-day-h">'+x+'</div>'});
+    var fd=d.getDay();
+    for(var i=0;i<fd;i++)h+='<div></div>';
+    var dim=new Date(d.getFullYear(),d.getMonth()+1,0).getDate();
+    for(var dy=1;dy<=dim;dy++){
+      var ds2=attMonth+'-'+String(dy).padStart(2,'0');
+      var rec=att[ds2]&&att[ds2][attEmpF];
+      var dow=new Date(ds2).getDay();
+      var isWknd=dow===0||dow===5;
+      var cls='att-day ';
+      var lbl=String(dy);
+      if(isWknd&&!rec){cls+='aw';lbl+='<br><span style="font-size:8px">Off</span>'}
+      else if(!rec){cls+='aa';lbl+='<br><span style="font-size:8px">A</span>'}
+      else{{var mp={P:'ap',A:'aa',AL:'aal',SL:'asl',H:'aal'}[rec.status]||'aa';cls+=mp;lbl+='<br><span style="font-size:8px">'+rec.status+'</span>'}}
+      h+='<div class="'+cls+'">'+lbl+'</div>';
+    }
+    h+='</div></div>';
+  } else {
+    h+='<div class="tbl-wrap"><table><thead><tr><th>Employee</th><th>Dept</th><th>Present</th><th>Absent</th><th>AL</th><th>SL</th><th>%</th></tr></thead><tbody>';
+    Object.keys(emps).sort(function(a,b){return emps[a].name.localeCompare(emps[b].name)}).forEach(function(k){
+      var stats=calcAttStats(k,attMonth,att);
+      var pv=pct(stats.P+stats.H*0.5,WORK_DAYS);
+      h+='<tr><td><b>'+esc(emps[k].name)+'</b></td><td>'+esc(emps[k].dept)+'</td>';
+      h+='<td style="color:#4ade80">'+stats.P+'</td><td style="color:#f87171">'+stats.A+'</td>';
+      h+='<td style="color:#fbbf24">'+stats.AL+'</td><td style="color:#a78bfa">'+stats.SL+'</td>';
+      h+='<td><span class="badge '+(pv>=90?'bg':pv>=75?'by':'br')+'">'+pv+'%</span></td></tr>';
+    });
+    h+='</tbody></table></div>';
+  }
+  return h;
+}
+
+function calcAttStats(empKey,month,att){
+  var s={P:0,A:0,AL:0,SL:0,H:0};
+  for(var d=1;d<=31;d++){
+    var ds=month+'-'+String(d).padStart(2,'0');
+    if(new Date(ds).getMonth()!==new Date(month+'-01').getMonth())continue;
+    var dow=new Date(ds).getDay();
+    if(dow===0||dow===5)continue;
+    var rec=att[ds]&&att[ds][empKey];
+    if(rec&&s[rec.status]!==undefined)s[rec.status]++;
+    else if(!rec)s.A++;
+  }
+  return s;
+}
+
+// ═══ PAYROLL ═══
+var payMonth=today().slice(0,7);
+function payrollV(){
+  var emps=DB.emps,att=DB.att,pr=DB.payroll;
+  var h='<div class="topbar"><h1>💰 Monthly Payroll</h1>';
+  h+='<div style="display:flex;gap:8px;align-items:center">';
+  h+='<input type="month" id="pay-m" value="'+payMonth+'" onchange="payMonth=this.value;document.getElementById(\'view-area\').innerHTML=payrollV()" style="width:auto">';
+  if(me&&(me.role==='admin'||me.role==='owner'))h+='<button class="btn btn-p" onclick="calcAll()">⚙️ Calculate</button>';
+  h+='</div></div>';
+  var monthPr=pr[payMonth]||{};
+  var empArr=Object.keys(emps);
+  var totalNet=0;
+  h+='<div class="tbl-wrap"><table><thead><tr><th>Employee</th><th>Dept</th><th>Basic</th><th>Bonus</th><th>Present</th><th>Deduction</th><th>Punct.</th><th>Net Salary</th><th>Status</th></tr></thead><tbody>';
+  empArr.sort(function(a,b){return emps[a].name.localeCompare(emps[b].name)}).forEach(function(k){
+    var emp=emps[k];
+    var calc=monthPr[k];
+    if(!calc){var st=calcAttStats(k,payMonth,att);calc=computeSalary(emp,st);}
+    totalNet+=calc.netSalary||0;
+    var sc=calc.status==='Paid'?'bg':calc.status==='Approved'?'bb':'by';
+    h+='<tr><td><b>'+esc(emp.name)+'</b></td><td>'+esc(emp.dept)+'</td>';
+    h+='<td>'+comma(calc.basic)+'</td><td>'+comma(calc.bonus)+'</td>';
+    h+='<td style="text-align:center">'+calc.presentDays+'/'+WORK_DAYS+'</td>';
+    h+='<td style="color:#f87171">-'+comma(calc.absentDeduction)+'</td>';
+    h+='<td style="color:#fbbf24">+'+comma(calc.punctualityBonus)+'</td>';
+    h+='<td style="font-weight:700;color:#4ade80">PKR '+comma(calc.netSalary)+'</td>';
+    h+='<td><span class="badge '+sc+'">'+(calc.status||'Draft')+'</span></td></tr>';
+  });
+  h+='<tr><td colspan="7" style="text-align:right;font-weight:700;color:var(--muted)">TOTAL</td><td style="font-weight:700;color:#4ade80">PKR '+comma(totalNet)+'</td><td></td></tr>';
+  h+='</tbody></table></div>';
+  return h;
+}
+
+function computeSalary(emp,stats){
+  var perDay=emp.totalSalary/WORK_DAYS;
+  var presentDays=stats.P+(stats.H*0.5);
+  var absentDed=Math.round(stats.A*perDay);
+  var punct=(stats.A>0||stats.AL>0)?0:emp.punctualityBonus;
+  return {calculated:true,basic:emp.basic,bonus:emp.bonus,presentDays:Math.round(presentDays),
+    absentDays:stats.A,alDays:stats.AL,perDay:Math.round(perDay),
+    absentDeduction:absentDed,punctualityBonus:punct,
+    grossSalary:emp.totalSalary,netSalary:Math.round(emp.totalSalary-absentDed+punct),status:'Draft'};
+}
+function calcAll(){
+  var emps=DB.emps,att=DB.att,pr=DB.payroll;
+  if(!pr[payMonth])pr[payMonth]={};
+  Object.keys(emps).forEach(function(k){var st=calcAttStats(k,payMonth,att);pr[payMonth][k]=computeSalary(emps[k],st)});
+  savePayroll(pr);document.getElementById('view-area').innerHTML=payrollV();
+}
+
+// ═══ SALARY SLIPS ═══
+var slipMonth=today().slice(0,7);
+function slipsV(){
+  var emps=DB.emps;
+  var h='<div class="topbar"><h1>🧾 Salary Slips</h1></div>';
+  h+='<div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">';
+  h+='<div class="field"><label>Month</label><input type="month" id="sm" value="'+slipMonth+'" onchange="slipMonth=this.value"></div>';
+  h+='<div class="field"><label>Employee</label><select id="se"><option value="">— Select —</option>';
+  Object.keys(emps).sort(function(a,b){return emps[a].name.localeCompare(emps[b].name)}).forEach(function(k){
+    h+='<option value="'+esc(k)+'">'+esc(emps[k].name)+'</option>';
+  });
+  h+='</select></div>';
+  h+='<div class="field"><label>&nbsp;</label><button class="btn btn-p" onclick="genSlip()">🧾 Generate</button></div>';
+  h+='</div><div id="slip-out"></div>';
+  return h;
+}
+function genSlip(){
+  var k=val('se'),m=val('sm')||slipMonth;if(!k)return;
+  var emps=DB.emps,att=DB.att,pr=DB.payroll,emp=emps[k];if(!emp)return;
+  var calc=(pr[m]&&pr[m][k])||computeSalary(emp,calcAttStats(k,m,att));
+  var h='<div class="slip"><h2>💼 KK Salary Slip &nbsp; '+m+'</h2>';
+  h+='<div style="display:flex;justify-content:space-between;margin-bottom:12px;font-size:13px"><div><b>'+esc(emp.name)+'</b><br>'+esc(emp.role)+'<br><span style="color:#1E3A5F">'+esc(emp.dept)+'</span></div>';
+  h+='<div style="text-align:right"><b>'+esc(emp.id||k)+'</b><br>Joining: '+esc(emp.joinDate||'-')+'</div></div>';
+  h+='<div class="slip-row"><span>Basic Salary</span><span>PKR '+comma(calc.basic)+'</span></div>';
+  h+='<div class="slip-row"><span>Bonus</span><span>PKR '+comma(calc.bonus)+'</span></div>';
+  h+='<div class="slip-row"><span>Total Salary</span><span><b>PKR '+comma(calc.grossSalary)+'</b></span></div>';
+  h+='<div style="height:8px"></div>';
+  h+='<div class="slip-row"><span>Working Days</span><span>'+WORK_DAYS+'</span></div>';
+  h+='<div class="slip-row"><span>Present Days</span><span>'+calc.presentDays+'</span></div>';
+  h+='<div class="slip-row"><span>Absent Days</span><span>'+calc.absentDays+'</span></div>';
+  h+='<div class="slip-row"><span>Annual Leave Days</span><span>'+calc.alDays+'</span></div>';
+  h+='<div class="slip-row"><span>Per Day Rate</span><span>PKR '+comma(calc.perDay)+'</span></div>';
+  h+='<div style="height:8px"></div>';
+  h+='<div class="slip-row" style="color:#cc0000"><span>(-) Absent Deduction</span><span>PKR '+comma(calc.absentDeduction)+'</span></div>';
+  h+='<div class="slip-row" style="color:#006400"><span>(+) Punctuality Bonus</span><span>PKR '+comma(calc.punctualityBonus)+'</span></div>';
+  h+='<div class="slip-total"><span>NET SALARY</span><span>PKR '+comma(calc.netSalary)+'</span></div>';
+  h+='<div style="margin-top:14px;font-size:11px;color:#888;text-align:center">Generated: '+new Date().toDateString()+' | KK HR & Payroll System</div></div>';
+  h+='<div class="btn-row"><button class="btn btn-p" onclick="window.print()">🖨️ Print Slip</button></div>';
+  $('slip-out').innerHTML=h;
+}
+
+// ═══ EMPLOYEES ═══
+var empQ='',empDF='All';
+function empsV(){
+  var emps=DB.emps,faces=DB.faces;
+  var list=Object.keys(emps);
+  if(empDF!=='All')list=list.filter(function(k){return emps[k].dept===empDF});
+  if(empQ){var q=empQ.toLowerCase();list=list.filter(function(k){return (emps[k].name+emps[k].dept+emps[k].role).toLowerCase().indexOf(q)>=0})}
+  var h='<div class="topbar"><h1>👥 Employees</h1><button class="btn btn-p" onclick="openAddEmp()">+ Add</button></div>';
+  h+='<div id="emp-msg" class="hidden"></div>';
+  h+='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">';
+  h+='<input placeholder="Search..." oninput="empQ=this.value;document.getElementById(\'view-area\').innerHTML=empsV()" value="'+esc(empQ)+'" style="max-width:200px">';
+  h+='<select onchange="empDF=this.value;document.getElementById(\'view-area\').innerHTML=empsV()"><option value="All">All Depts</option>';
+  DEPTS.forEach(function(d){h+='<option'+(empDF===d?' selected':'')+'>'+d+'</option>'});
+  h+='</select></div>';
+  h+='<div class="tbl-wrap"><table><thead><tr><th>ID</th><th>Name</th><th>Dept</th><th>Role</th><th>Total Salary</th><th>Punct. Bonus</th><th>Face</th><th>Actions</th></tr></thead><tbody>';
+  list.sort(function(a,b){return emps[a].name.localeCompare(emps[b].name)}).forEach(function(k){
+    var e=emps[k],col=DEPT_COLOR[e.dept]||'#2563eb';
+    h+='<tr><td style="font-size:11px;color:var(--muted)">'+esc(e.id||k)+'</td><td><b>'+esc(e.name)+'</b></td>';
+    h+='<td><span style="background:'+col+'22;color:'+col+';border:1px solid '+col+'44;padding:2px 8px;border-radius:12px;font-size:11px">'+esc(e.dept)+'</span></td>';
+    h+='<td>'+esc(e.role)+'</td><td style="color:#4ade80;font-weight:600">PKR '+comma(e.totalSalary)+'</td>';
+    h+='<td style="color:#fbbf24">PKR '+comma(e.punctualityBonus)+'</td>';
+    h+='<td>'+(faces[k]?'<span class="badge bg">✅ Done</span>':'<span class="badge br">❌ No</span>')+'</td>';
+    h+='<td><button class="btn btn-g" style="padding:4px 10px;font-size:12px" onclick="openEditEmp(\''+k+'\')">Edit</button></td></tr>';
+  });
+  h+='</tbody></table></div>';
+  return h;
+}
+function openAddEmp(){
+  var b='<div id="ae-msg" class="hidden"></div><div class="form-grid">';
+  b+='<div class="field"><label>Full Name *</label><input id="ae_n" placeholder="Full name"></div>';
+  b+='<div class="field"><label>Username *</label><input id="ae_u" placeholder="e.g. ali.hassan"></div>';
+  b+='<div class="field"><label>Department</label><select id="ae_d">';
+  DEPTS.forEach(function(d){b+='<option>'+d+'</option>'});
+  b+='</select></div><div class="field"><label>Role</label><input id="ae_r" placeholder="e.g. Agent"></div>';
+  b+='<div class="field"><label>Basic Salary</label><input id="ae_b" type="number" value="70000"></div>';
+  b+='<div class="field"><label>Bonus</label><input id="ae_x" type="number" value="30000"></div>';
+  b+='<div class="field"><label>Punctuality Bonus</label><input id="ae_p" type="number" value="10000"></div>';
+  b+='<div class="field"><label>Join Date</label><input id="ae_j" type="date" value="'+today()+'"></div>';
+  b+='</div><div class="btn-row"><button class="btn btn-p" onclick="saveNewEmp()">Save</button><button class="btn btn-g" onclick="closeModal()">Cancel</button></div>';
+  openModal('Add Employee',b);
+}
+function saveNewEmp(){
+  var nm=val('ae_n'),un=val('ae_u').toLowerCase();
+  if(!nm||!un){showMsg('ae-msg','Name and username required.','er');return}
+  var emps=DB.emps,users=DB.users;
+  if(emps[un]){showMsg('ae-msg','Username exists.','er');return}
+  var id='EMP'+String(Object.keys(emps).length+121).padStart(3,'0');
+  var basic=parseInt(val('ae_b'))||0,bonus=parseInt(val('ae_x'))||0;
+  emps[un]={id:id,name:nm,dept:val('ae_d'),role:val('ae_r')||'Agent',basic:basic,bonus:bonus,
+    punctualityBonus:parseInt(val('ae_p'))||0,totalSalary:basic+bonus,
+    pw:hashPw('1234'),status:'active',joinDate:val('ae_j')};
+  users[un]={name:nm,role:'employee',dept:val('ae_d'),empId:un,pw:hashPw('1234')};
+  saveEmps(emps);save('users',users);
+  closeModal();document.getElementById('view-area').innerHTML=empsV();
+}
+function openEditEmp(k){
+  var e=DB.emps[k];if(!e)return;
+  var b='<div class="form-grid">';
+  b+='<div class="field"><label>Name</label><input id="ee_n" value="'+esc(e.name)+'"></div>';
+  b+='<div class="field"><label>Dept</label><select id="ee_d">';
+  DEPTS.forEach(function(d){b+='<option'+(e.dept===d?' selected':'')+'>'+d+'</option>'});
+  b+='</select></div><div class="field"><label>Role</label><input id="ee_r" value="'+esc(e.role||'')+'"></div>';
+  b+='<div class="field"><label>Basic</label><input id="ee_b" type="number" value="'+e.basic+'"></div>';
+  b+='<div class="field"><label>Bonus</label><input id="ee_x" type="number" value="'+e.bonus+'"></div>';
+  b+='<div class="field"><label>Punct. Bonus</label><input id="ee_p" type="number" value="'+e.punctualityBonus+'"></div>';
+  b+='</div><div class="btn-row"><button class="btn btn-p" onclick="saveEE(\''+k+'\')">Save</button><button class="btn btn-g" onclick="closeModal()">Cancel</button></div>';
+  openModal('Edit: '+e.name,b);
+}
+function saveEE(k){
+  var emps=DB.emps,e=emps[k];
+  e.name=val('ee_n');e.dept=val('ee_d');e.role=val('ee_r');
+  e.basic=parseInt(val('ee_b'))||0;e.bonus=parseInt(val('ee_x'))||0;
+  e.punctualityBonus=parseInt(val('ee_p'))||0;e.totalSalary=e.basic+e.bonus;
+  saveEmps(emps);closeModal();document.getElementById('view-area').innerHTML=empsV();
+}
+
+// ═══ REPORTS ═══
+function reportsV(){
+  var emps=DB.emps,att=DB.att;
+  var month=today().slice(0,7);
+  var h='<div class="topbar"><h1>📈 Reports — '+month+'</h1></div>';
+  h+='<div class="tbl-wrap"><table><thead><tr><th>Employee</th><th>Dept</th><th>Present</th><th>Absent</th><th>AL</th><th>%</th><th>Net Salary</th></tr></thead><tbody>';
+  var grand=0;
+  Object.keys(emps).sort(function(a,b){return emps[a].name.localeCompare(emps[b].name)}).forEach(function(k){
+    var emp=emps[k];var stats=calcAttStats(k,month,att);var calc=computeSalary(emp,stats);
+    var pv=pct(stats.P+stats.H*0.5,WORK_DAYS);grand+=calc.netSalary;
+    h+='<tr><td><b>'+esc(emp.name)+'</b></td><td>'+esc(emp.dept)+'</td>';
+    h+='<td style="color:#4ade80">'+stats.P+'</td><td style="color:#f87171">'+stats.A+'</td><td style="color:#fbbf24">'+stats.AL+'</td>';
+    h+='<td><span class="badge '+(pv>=90?'bg':pv>=75?'by':'br')+'">'+pv+'%</span></td>';
+    h+='<td style="font-weight:600">PKR '+comma(calc.netSalary)+'</td></tr>';
+  });
+  h+='<tr><td colspan="6" style="text-align:right;font-weight:700;color:var(--muted)">TOTAL</td><td style="font-weight:700;color:#4ade80">PKR '+comma(grand)+'</td></tr>';
+  h+='</tbody></table></div>';
+  return h;
+}
+</script>
+</body>
+</html>
