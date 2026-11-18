@@ -1,1 +1,10 @@
 roster*.json
+camera/config.ini
+camera/faces/
+camera/faces.pkl
+camera/employees.csv
+camera/models/
+camera/snapshot_*.jpg
+camera/camera.log
+camera/unsent.jsonl
+camera/__pycache__/

@@ -176,9 +176,10 @@ var two = function(n){ return (n<10?'0':'') + n; };
 var toHM = function(m){ return two(Math.floor(m/60)) + ':' + two(m%60); };
 
 /* ---------- storage (per browser, optional) ---------- */
-var DEF = {start:'07:15', end:'18:45', breakMin:60, grace:0, divMode:'cal', divisor:30, latePct:100, leaveCancels:true, demo:false};
+var DEF = {start:'07:15', end:'18:45', breakMin:60, grace:0, divMode:'cal', divisor:30, latePct:100, leaveCancels:true, demo:false, autoFrom:''};
 var blankStore = function(){ return {settings:{}, att:{}, emp:{}, added:[], cam:[], dept:{}, removed:[], depts:[], seq:0}; };
 var store = blankStore();
+var camEv = {}, camSeen = {}, evLoaded = false, evErr = '', empMap = {};
 
 /* ---------- secure storage: Supabase table hr_kv, readable only after admin sign-in ---------- */
 var SB_URL = 'https://wpadbzbjeqinsxpblnqx.supabase.co', SB_KEY = 'sb_publishable_qIYABs0_jJCBTJ-tn294uA_jWy0NJUA';
@@ -258,12 +259,32 @@ var emps = [];
 function buildEmps(){
   emps = baseEmps.filter(function(e){ return store.removed.indexOf(e.id)<0; }).map(function(e){ var c = Object.assign({}, e); var ov = store.emp[e.id]; if (ov){ c.basic = ov.basic; c.bonus = ov.bonus; if (ov.name) c.name = ov.name; if (ov.alias!==undefined) c.alias = ov.alias; if (ov.role!==undefined) c.role = ov.role; } return c; });
   store.added.forEach(function(a){ var c = Object.assign({}, a); var ov = store.emp[a.id]; if (ov){ c.basic = ov.basic; c.bonus = ov.bonus; if (ov.name) c.name = ov.name; if (ov.alias!==undefined) c.alias = ov.alias; if (ov.role!==undefined) c.role = ov.role; } emps.push(c); });
+  empMap = {}; emps.forEach(function(e){ empMap[e.id] = e; });
 }
 buildEmps();
 
 /* ---------- rules and calculation ---------- */
 var startM = function(){ return toMin(settings.start) + Number(settings.grace||0); };
-function getRec(id, d){ return store.att[attKey(id,d)] || (base[id] && base[id][d]) || null; }
+function ymd(y, m, d){ return y + '-' + two(m+1) + '-' + two(d); }
+function dayOver(d){
+  if (!IS_CUR || d < REAL_D) return true;
+  if (d > REAL_D) return false;
+  var n = new Date(); return n.getHours()*60 + n.getMinutes() >= toMin(settings.end);
+}
+/* A working day with no hand record and no camera record counts as absent once duty has ended,
+   but only from the date set in Rules, and never for work-from-home people. */
+function autoAbsent(id, d){
+  if (settings.demo || !evLoaded || !settings.autoFrom) return null;
+  var e = empMap[id]; if (!e || e.wfh) return null;
+  if (ymd(YEAR, MON, d) < settings.autoFrom || !dayOver(d)) return null;
+  return {s:'A', auto:true};
+}
+function getRec(id, d){
+  var m = store.att[attKey(id,d)]; if (m) return m;
+  var c = camEv[id+'-'+d]; if (c) return {s:'in', t:c.t, src:'camera'};
+  var b = base[id] && base[id][d]; if (b) return b;
+  return autoAbsent(id, d);
+}
 function statusOf(r){ if (!r) return null; if (r.s==='A') return 'A'; if (r.s==='V') return 'V'; return toMin(r.t) > startM() ? 'L' : 'P'; }
 
 function divisorFor(){ return settings.divMode==='work' ? Math.max(1,MONTH_WORK) : settings.divMode==='fix' ? Math.max(1,Number(settings.divisor)) : MONTH_DAYS; }
@@ -285,9 +306,9 @@ function calc(e){
           bonusOK:bonusOK, bonusPaid:bonusPaid, bonusLost:e.bonus-bonusPaid, net:e.basic-dedAbs-dedLate+bonusPaid};
 }
 function dayStats(d){
-  var s = {n:0,inn:0,late:0,ontime:0,lv:0,abs:0};
+  var s = {n:emps.length,inn:0,late:0,ontime:0,lv:0,abs:0,pend:0};
   emps.forEach(function(e){
-    var r = getRec(e.id, d); if (!r) return; s.n++;
+    var r = getRec(e.id, d); if (!r){ s.pend++; return; }
     var k = statusOf(r);
     if (k==='A') s.abs++; else if (k==='V') s.lv++; else { s.inn++; if (k==='L') s.late++; else s.ontime++; }
   });
@@ -324,9 +345,9 @@ function dashView(){
     var c = calc(e), a = agg[e.dept]; if (!a) return;
     var r = getRec(e.id, TODAY), k = statusOf(r);
     a.cnt++; a.gross += e.basic+e.bonus; a.net += c.net; a.inn += c.inn; a.rec += c.inn+c.abs+c.lv;
-    if (r){ a.todayN++; if (k==='P'||k==='L') a.todayIn++; }
+    a.todayN++; if (k==='P'||k==='L') a.todayIn++;
     tot.cnt++; tot.gross += e.basic+e.bonus; tot.net += c.net; tot.ded += c.ded; tot.lost += c.bonusLost; tot.inn += c.inn; tot.rec += c.inn+c.abs+c.lv;
-    if (r){ tot.todayN++; if (k==='P'||k==='L') tot.todayIn++; }
+    tot.todayN++; if (k==='P'||k==='L') tot.todayIn++;
   });
   var teamRows = deptNames.map(function(d){
     var m = emps.filter(function(e){ return e.dept===d; });
@@ -354,6 +375,7 @@ function dashView(){
   + '<div><div class="k">On leave</div><div class="v info">'+t.lv+'</div></div>'
   + '<div><div class="k">Absent</div><div class="v bad">'+t.abs+'</div></div>'
   + '</div>'
+  + (t.pend ? '<p class="sumline" style="margin-top:8px"><b>'+t.pend+'</b> people have no record for this day yet. Work-from-home staff are marked by hand.</p>' : '')
 
   + '<h2>Daily attendance, '+workDays[0]+' to '+workDays[workDays.length-1]+' '+mname+' (Sundays off)</h2>'
   + '<div class="chartbox"><div class="chart">'+cols+'</div>'
@@ -399,7 +421,7 @@ function fillAtt(){
       + (r ? '' : '<option value="" selected disabled>—</option>')
       + '<option value="in"'+(sel==='in'?' selected':'')+'>Present</option><option value="V"'+(sel==='V'?' selected':'')+'>On leave</option><option value="A"'+(sel==='A'?' selected':'')+'>Absent</option></select></td>'
       + '<td><input type="time" data-act="time" data-id="'+e.id+'" value="'+(r&&r.s==='in'?r.t:'')+'"'+(r&&r.s==='in'?'':' disabled')+' aria-label="Arrival time"></td>'
-      + '<td>'+pill(k)+(r&&r.src==='camera'?'<span class="sm">marked by camera</span>':'')+'</td></tr>';
+      + '<td>'+pill(k)+(r&&r.src==='camera'?'<span class="sm">marked by camera</span>':'')+(r&&r.auto?'<span class="sm">no record, counted absent</span>':'')+'</td></tr>';
   }).join('') || '<tr><td colspan="4">No employees found.</td></tr>';
 }
 
@@ -411,7 +433,7 @@ function salView(){
   + '<label>Sort by<select id="salSort" data-f="salSort"><option value="name"'+(state.salSort==='name'?' selected':'')+'>Name</option><option value="net"'+(state.salSort==='net'?' selected':'')+'>Payable salary (high to low)</option><option value="ded"'+(state.salSort==='ded'?' selected':'')+'>Deductions (high to low)</option></select></label>'
   + '<label class="grow">Search<input type="search" id="salQ" data-f="salQ" value="'+esc(state.salQ)+'" placeholder="Name, ID name or role"></label>'
   + '</div>'
-  + '<p class="sumline">This month has '+MONTH_WORK+' working days ('+workDays.length+' recorded so far). Records up to '+LAST_DAY+' '+MONTHS[MON]+'. One day\'s pay = basic ÷ '+divisorFor()+'. A late arrival deducts '+settings.latePct+'% of a day (a team can have its own late % in the Teams tab); an absence deducts a full day and cancels the whole punctuality bonus.</p>'
+  + '<p class="sumline">This month has '+MONTH_WORK+' working days ('+workDays.length+' recorded so far). Records up to '+LAST_DAY+' '+MONTHS[MON]+'. One day\'s pay = basic ÷ '+divisorFor()+'. A late arrival deducts '+settings.latePct+'% of a day (a team can have its own late % in the Teams tab). A working day with no record counts as absent once duty ends, from the date set in Rules; an absence deducts a full day and cancels the whole punctuality bonus.</p>'
   + '<div class="scroll"><table style="min-width:900px"><thead><tr><th>Employee</th><th class="num">Basic</th><th class="num">Bonus</th><th class="num">Present (of '+workDays.length+')</th><th class="num">Late</th><th class="num">Leave</th><th class="num">Absent</th><th class="num">Deduction</th><th>Bonus</th><th class="num">Payable</th></tr></thead><tbody id="salBody"></tbody><tfoot id="salFoot"></tfoot></table></div>';
 }
 function fillSal(){
@@ -477,6 +499,7 @@ function setView(){
   + '<label class="field">One day\'s pay = basic ÷<select data-k="divMode"><option value="cal"'+(s.divMode==='cal'?' selected':'')+'>Days in the month ('+MONTH_DAYS+' now)</option><option value="work"'+(s.divMode==='work'?' selected':'')+'>Working days, Sundays off ('+MONTH_WORK+' now)</option><option value="fix"'+(s.divMode==='fix'?' selected':'')+'>A fixed number</option></select></label>'
   + '<label class="field">Fixed number (used only if chosen)<input type="number" min="1" data-k="divisor" value="'+s.divisor+'"></label>'
   + '<label class="field">Late deduction (% of a day)<input type="number" min="0" max="100" data-k="latePct" value="'+s.latePct+'"></label>'
+  + '<label class="field">Count missing days as absent, starting from (empty = off)<input type="date" data-k="autoFrom" value="'+(s.autoFrom||'')+'"></label>'
   + '<label class="field check"><input type="checkbox" data-k="leaveCancels"'+(s.leaveCancels?' checked':'')+'> Annual leave also cancels the bonus</label>'
   + '</div>'
   + '<div class="example"><p><b>Example: basic 80,000 + bonus 20,000</b></p>'
@@ -533,42 +556,71 @@ function teamView(){
 }
 
 /* ---------- camera ---------- */
-var CAMS = [['Main Gate (Entry)','192.168.1.64'],['Reception','192.168.1.65'],['Office Floor','192.168.1.66']];
-function nowHM(){ var d = new Date(); return two(d.getHours()) + ':' + two(d.getMinutes()); }
-function camView(){
-  if (!CAMDAY) return '<h2>Camera attendance (CCTV)</h2><p class="note">'+(IS_CUR ? 'Today is a Sunday (weekly off), so the camera does not mark attendance.' : 'The camera marks attendance for today only. Go back to the current month to test it.')+'</p>';
-  var opts = emps.map(function(e){ return '<option value="'+e.id+'">'+esc(e.name)+(e.alias?' / '+esc(e.alias):'')+' ('+e.id+')</option>'; }).join('');
-  var camRows = CAMS.map(function(c,i){ return '<tr><td>'+c[0]+'</td><td>'+c[1]+'</td><td><span class="pill none">Not connected</span></td><td>'+(i===0?'Entry':i===1?'Entry':'Monitoring')+'</td></tr>'; }).join('');
-  return '<h2>Camera attendance (CCTV)</h2>'
-  + '<p class="note">When the camera sees a registered face, the app marks that person present with the date and time. Real connection to your CCTV needs a small program running in your office; this page shows how it will work. Use the test box below to try it.</p>'
-  + '<div class="stats four">'
-  + '<div><div class="k">Cameras connected</div><div class="v">0 <small>/ '+CAMS.length+'</small></div></div>'
-  + '<div><div class="k">Faces registered</div><div class="v">0 <small>/ '+emps.length+'</small></div></div>'
-  + '<div><div class="k">Camera marks today</div><div class="v">'+store.cam.filter(function(x){ return x.y===REAL_Y && x.m===REAL_M && x.day===REAL_D; }).length+'</div></div>'
-  + '<div><div class="k">Match rule</div><div class="v">90%+</div></div></div>'
-  + '<h2>Test a camera detection</h2>'
-  + '<div class="form"><label class="field grow">Face seen by camera<select id="simEmp">'+opts+'</select></label>'
-  + '<label class="field">Camera<select id="simCam">'+CAMS.map(function(c){ return '<option>'+c[0]+'</option>'; }).join('')+'</select></label>'
-  + '<label class="field">Time<input type="time" id="simTime" value="'+nowHM()+'"></label>'
-  + '<button class="btn" data-sim="1">Camera sees this face</button></div>'
-  + '<p class="msg" id="simMsg">This marks the person present for today ('+dayLabel(CAMDAY).replace(' (today)','')+') at the time shown, exactly as a real camera event will.</p>'
-  + '<h2>Camera log</h2>'
-  + '<div class="scroll"><table><thead><tr><th>Time</th><th>Employee</th><th>Camera</th><th class="num">Match</th><th>Result</th></tr></thead><tbody id="camBody"></tbody></table></div>'
-  + '<h2>Your cameras</h2>'
-  + '<div class="scroll"><table><thead><tr><th>Camera</th><th>Address (example)</th><th>Status</th><th>Use</th></tr></thead><tbody>'+camRows+'</tbody></table></div>'
-  + '<h2>How the real camera connects</h2>'
-  + '<div class="example"><p><b>1. Register faces.</b> Take 3 to 5 clear photos of each employee. The program stores a face fingerprint for each person.</p>'
-  + '<p><b>2. Connect the CCTV.</b> A small program on an office PC reads the camera video (RTSP address from your NVR or IP camera).</p>'
-  + '<p><b>3. Match.</b> When a face appears, it is compared with the registered fingerprints. A match above 90% counts.</p>'
-  + '<p><b>4. Send to this app.</b> The program sends the employee ID, camera name and time. The app marks present and applies the late rule from the Rules tab.</p>'
-  + '<p><b>5. Only the first entry counts.</b> Later sightings the same day are ignored.</p></div>';
+function camAgo(ts){
+  var m = Math.round((Date.now()-ts)/60000);
+  return m < 1 ? 'just now' : m < 60 ? m+' min ago' : m < 1440 ? Math.round(m/60)+' h ago' : Math.round(m/1440)+' days ago';
 }
-function fillCam(){
-  var rows = store.cam.slice().reverse().map(function(x){
-    return '<tr><td>'+x.day+' '+MSHORT[x.m]+' · '+x.t+'</td><td>'+esc(x.name)+'<span class="sm">'+x.id+'</span></td><td>'+esc(x.cam)+'</td><td class="num">'+x.conf+'%</td><td><span class="pill '+(x.ok?'good':'none')+'">'+esc(x.res)+'</span></td></tr>';
-  }).join('');
-  if (!$('#camBody')) return;
-  $('#camBody').innerHTML = rows || '<tr><td colspan="5">No camera detections yet. Use the test box above.</td></tr>';
+function camView(){
+  var cams = Object.keys(camSeen).map(function(n){ return {name:n, ts:new Date(camSeen[n]).getTime()}; }).sort(function(a,b){ return a.name.localeCompare(b.name); });
+  var online = cams.filter(function(c){ return Date.now()-c.ts < 180000; }).length;
+  var evs = Object.keys(camEv).map(function(k){ return camEv[k]; }).sort(function(a,b){ return b.day-a.day || (a.t < b.t ? 1 : -1); });
+  var todayN = IS_CUR ? evs.filter(function(x){ return x.day===REAL_D; }).length : 0;
+  var lateN = IS_CUR ? evs.filter(function(x){ return x.day===REAL_D && toMin(x.t) > startM(); }).length : 0;
+  var last = evs.length ? evs[0].day+' '+MSHORT[MON]+' · '+evs[0].t : '—';
+  var camRows = cams.map(function(c){
+    var on = Date.now()-c.ts < 180000;
+    return '<tr><td>'+esc(c.name)+'</td><td>'+camAgo(c.ts)+'</td><td><span class="pill '+(on?'good':'bad')+'">'+(on?'Online':'Offline')+'</span></td></tr>';
+  }).join('') || '<tr><td colspan="3">No camera has connected yet. Install the camera program (see below).</td></tr>';
+  var rows = evs.slice(0,60).map(function(x){
+    var e = empMap[x.id], k = statusOf({s:'in', t:x.t});
+    return '<tr><td>'+x.day+' '+MSHORT[MON]+' · '+x.t+'</td><td>'+(e ? esc(e.name)+'<span class="sm">'+sub(e)+'</span>' : esc(x.id)+'<span class="sm">not in the team list</span>')+'</td><td>'+esc(x.cam||'')+'</td><td class="num">'+(x.score!=null ? Number(x.score).toFixed(2) : '')+'</td><td>'+pill(k)+'</td></tr>';
+  }).join('') || '<tr><td colspan="5">No camera records for this month.</td></tr>';
+  return '<h2>Camera attendance (CCTV)</h2>'
+  + (evErr ? '<p class="msg err" style="margin-bottom:12px">'+esc(evErr)+'</p>' : '')
+  + '<p class="note">The camera program at the office sends the first time each person is seen every day. The app marks Present or Late from the time, using the Rules tab. Camera records are shown here as they arrive.</p>'
+  + '<div class="stats four">'
+  + '<div><div class="k">Cameras online</div><div class="v">'+online+' <small>/ '+cams.length+'</small></div></div>'
+  + '<div><div class="k">Seen today</div><div class="v">'+todayN+'</div></div>'
+  + '<div><div class="k">Late today</div><div class="v warn">'+lateN+'</div></div>'
+  + '<div><div class="k">Latest record</div><div class="v" style="font-size:16px;padding-top:6px">'+last+'</div></div></div>'
+  + '<h2>Cameras</h2>'
+  + '<div class="scroll"><table style="min-width:420px"><thead><tr><th>Camera</th><th>Last signal</th><th>Status</th></tr></thead><tbody>'+camRows+'</tbody></table></div>'
+  + '<h2>Camera records, '+MONTHS[MON]+' '+YEAR+' (latest 60)</h2>'
+  + '<div class="scroll"><table><thead><tr><th>Time</th><th>Employee</th><th>Camera</th><th class="num">Match score</th><th>Result</th></tr></thead><tbody>'+rows+'</tbody></table></div>'
+  + '<p class="sumline" style="margin-top:8px">Match score is a similarity number from 0 to 1, not a percentage. Higher is a surer match.</p>'
+  + '<h2>How it works</h2>'
+  + '<div class="example"><p><b>1.</b> Photos of each person are learned once on the office PC (3 to 5 per person).</p>'
+  + '<p><b>2.</b> The camera program reads the gate camera and recognises faces.</p>'
+  + '<p><b>3.</b> The first sighting of each person each day is sent here.</p>'
+  + '<p><b>4.</b> Work-from-home staff, and anyone the camera missed, are marked by hand in the Attendance tab. A hand mark always wins over the camera.</p></div>';
+}
+function fillCam(){}
+
+/* ---------- camera records from the database ---------- */
+function loadEvents(){
+  var y = YEAR, m = MON, first = ymd(y, m, 1), last = ymd(y, m, new Date(y, m+1, 0).getDate());
+  var rows = [];
+  function page(off){
+    return fetch(SB_URL+'/rest/v1/hr_events?select=day,emp_id,t,camera,score&day=gte.'+first+'&day=lte.'+last+'&order=day.asc,t.asc&limit=1000&offset='+off, {headers:sbHeaders()})
+      .then(function(r){ if (!r.ok) throw new Error('Camera records could not be loaded ('+r.status+'). Run hr_setup_camera.sql in Supabase.'); return r.json(); })
+      .then(function(j){ rows = rows.concat(j); return j.length === 1000 ? page(off+1000) : rows; });
+  }
+  return freshToken().then(function(){ return page(0); }).then(function(all){
+    if (y !== YEAR || m !== MON) return false;
+    var ev = {};
+    all.forEach(function(r){ var d = Number(String(r.day).slice(8,10)); var k = r.emp_id+'-'+d; if (!ev[k]) ev[k] = {id:r.emp_id, day:d, t:String(r.t).slice(0,5), cam:r.camera, score:r.score}; });
+    return fetch(SB_URL+'/rest/v1/hr_cameras?select=name,last_seen', {headers:sbHeaders()}).then(function(r){ return r.ok ? r.json() : []; }).then(function(cs){
+      var seen = {}; cs.forEach(function(c){ seen[c.name] = c.last_seen; });
+      var changed = Object.keys(ev).length !== Object.keys(camEv).length || JSON.stringify(seen) !== JSON.stringify(camSeen) || !evLoaded;
+      camEv = ev; camSeen = seen; evLoaded = true; evErr = ''; return changed;
+    });
+  }).catch(function(e){ evErr = e.message || 'Camera records could not be loaded.'; return true; });
+}
+function refreshEvents(){
+  return loadEvents().then(function(changed){
+    var ae = document.activeElement;
+    if (changed && AUTH.tok && !(ae && /INPUT|TEXTAREA|SELECT/.test(ae.tagName))) render();
+  });
 }
 
 /* ---------- wiring ---------- */
@@ -596,7 +648,7 @@ function render(){
 function go(tab){ state.tab = tab; state.confirmReset = false; render(); try{ window.scrollTo(0,0); }catch(e){} }
 
 document.addEventListener('click', function(ev){
-  var t = ev.target.closest ? ev.target.closest('[data-tab],[data-goto],[data-add],[data-reset],[data-sim],[data-month],[data-team],[data-teamapply],[data-rm],[data-tadd],[data-newteam]') : null;
+  var t = ev.target.closest ? ev.target.closest('[data-tab],[data-goto],[data-add],[data-reset],[data-month],[data-team],[data-teamapply],[data-rm],[data-tadd],[data-newteam]') : null;
   if (!t) return;
   if (t.hasAttribute('data-month')){
     var a = t.getAttribute('data-month'), y = YEAR, m = MON;
@@ -604,7 +656,7 @@ document.addEventListener('click', function(ev){
     else if (a==='next'){ m++; if (m>11){ m=0; y++; } }
     else { y = REAL_Y; m = REAL_M; }
     if (y>REAL_Y || (y===REAL_Y && m>REAL_M)) return;
-    setMonth(y, m); state.confirmReset = false; state.salDept = state.salDept; return render();
+    setMonth(y, m); camEv = {}; evLoaded = false; state.confirmReset = false; render(); refreshEvents(); return;
   }
   if (t.hasAttribute('data-team')){ state.teamSel = t.getAttribute('data-team'); state.rmConfirm=''; return go('team'); }
   if (t.hasAttribute('data-newteam')){
@@ -642,19 +694,6 @@ document.addEventListener('click', function(ev){
   if (t.hasAttribute('data-reset')){
     if (!state.confirmReset){ state.confirmReset = true; return render(); }
     store = {settings:{}, att:{}, emp:{}, added:[], cam:[], dept:{}, removed:[], depts:[], seq:0}; save(); rebuildDepts(); settings = Object.assign({}, DEF); buildEmps(); state.confirmReset = false; return render();
-  }
-  if (t.hasAttribute('data-sim')){
-    var sid = $('#simEmp').value, scam = $('#simCam').value, stime = $('#simTime').value, smsg = $('#simMsg');
-    var se = emps.filter(function(e){ return e.id===sid; })[0];
-    if (!se || !stime){ smsg.className='msg err'; smsg.textContent='Pick an employee and a time.'; return; }
-    var conf = 92 + Math.floor(Math.random()*7), key = attKey(sid, CAMDAY), cur = getRec(sid, CAMDAY);
-    var already = cur && cur.s==='in' && cur.src==='camera';
-    if (already){ store.cam.push({y:REAL_Y,m:REAL_M,day:CAMDAY,t:stime,id:sid,name:se.name,cam:scam,conf:conf,ok:false,res:'Already marked, ignored'}); }
-    else { store.att[key] = {s:'in', t:stime, src:'camera'}; var late = toMin(stime) > startM(); store.cam.push({y:REAL_Y,m:REAL_M,day:CAMDAY,t:stime,id:sid,name:se.name,cam:scam,conf:conf,ok:true,res:late?'Marked late':'Marked present'}); }
-    if (store.cam.length > 40) store.cam = store.cam.slice(-40);
-    save(); render();
-    var m2 = $('#simMsg'); m2.className='msg'; m2.textContent = already ? se.name+' was already marked by camera today, so this sighting was ignored.' : se.name+' marked '+(toMin(stime) > startM() ? 'late' : 'present')+' at '+stime+'. See the Attendance and Salary tabs.';
-    return;
   }
   if (t.hasAttribute('data-add')){
     var name = $('#newName').value.trim(), dept = $('#newDept').value, b = Number($('#newBasic').value), bo = Number($('#newBonus').value), msg = $('#addMsg');
@@ -699,8 +738,8 @@ document.addEventListener('change', function(ev){
     emp[act] = v; saveEmp(emp); save(); return afterEmpEdit();
   }
   if (k){
-    var val = t.type==='checkbox' ? t.checked : ((t.type==='time' || t.tagName==='SELECT') ? t.value : Number(t.value));
-    if (t.type!=='checkbox' && (val==='' || (typeof val==='number' && !(val>=0)))) return render();
+    var val = t.type==='checkbox' ? t.checked : ((t.type==='time' || t.type==='date' || t.tagName==='SELECT') ? t.value : Number(t.value));
+    if (t.type!=='checkbox' && k!=='autoFrom' && (val==='' || (typeof val==='number' && !(val>=0)))) return render();
     if (k==='divisor' && val<1) val = 1;
     if (k==='latePct' && val>100) val = 100;
     settings[k] = val; store.settings = Object.assign({}, settings); if (k==='demo') genBase(); save(); render();
@@ -730,7 +769,7 @@ function openApp(){
     loadRoster(ro ? ro.teams : []);
     setMonth(REAL_Y, REAL_M);
     $('#lock').hidden = true; $('#app').hidden = false; $('#lockPw').value = '';
-    render(); showSave(true);
+    render(); showSave(true); refreshEvents();
   }).catch(function(e){ lock(e.message || 'Could not open.'); });
 }
 document.addEventListener('click', function(ev){
@@ -756,6 +795,7 @@ document.addEventListener('change', function(ev){
   fr.readAsText(ev.target.files[0]);
 });
 if (AUTH.tok) openApp(); else lock('');
+setInterval(function(){ if (AUTH.tok && IS_CUR && !document.hidden) refreshEvents(); }, 30000);
 /* new day or new month: update by itself while the page stays open */
 setInterval(function(){
   if (!AUTH.tok) return;
